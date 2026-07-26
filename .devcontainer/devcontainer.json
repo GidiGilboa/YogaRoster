@@ -1,0 +1,12 @@
+{
+  "name": "Yoga Roster",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "Yoga Roster",
+      "onAutoForward": "openPreview"
+    }
+  }
+}
