@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireTeacher } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getWeekRange } from "@/lib/week";
 
 export type LessonActionState = {
   error?: string;
@@ -106,4 +107,45 @@ export async function deleteLessonAction(lessonId: string): Promise<LessonAction
 
   revalidatePath("/dashboard/lessons");
   return {};
+}
+
+export type CopyWeekActionState = {
+  status: "success" | "info";
+  message: string;
+};
+
+export async function copyPreviousWeekAction(weekOffset: number): Promise<CopyWeekActionState> {
+  const teacher = await requireTeacher();
+
+  const current = getWeekRange(weekOffset);
+  if (current.end <= new Date()) {
+    return { status: "info", message: "לא ניתן להעתיק שיעורים לשבוע שכבר עבר." };
+  }
+
+  const previous = getWeekRange(weekOffset - 1);
+  const previousLessons = await db.lesson.findMany({
+    where: { teacherId: teacher.id, startsAt: { gte: previous.start, lt: previous.end } },
+  });
+
+  if (previousLessons.length === 0) {
+    return { status: "info", message: "לא נמצאו שיעורים בשבוע הקודם להעתקה." };
+  }
+
+  await db.lesson.createMany({
+    data: previousLessons.map((lesson) => {
+      const startsAt = new Date(lesson.startsAt);
+      startsAt.setDate(startsAt.getDate() + 7);
+      return {
+        teacherId: teacher.id,
+        title: lesson.title,
+        startsAt,
+        durationMinutes: lesson.durationMinutes,
+        capacity: lesson.capacity,
+        comment: lesson.comment,
+      };
+    }),
+  });
+
+  revalidatePath("/dashboard/lessons");
+  return { status: "success", message: `הועתקו ${previousLessons.length} שיעורים משבוע קודם.` };
 }

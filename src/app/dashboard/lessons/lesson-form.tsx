@@ -65,36 +65,62 @@ function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: st
 function DeleteLessonButton({ lessonId, onDeleted }: { lessonId: string; onDeleted: () => void }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
-  function handleDelete() {
-    if (!confirm("למחוק את השיעור?")) return;
+  function handleConfirmDelete() {
     startTransition(async () => {
       const result = await deleteLessonAction(lessonId);
       if (result.error) {
         setError(result.error);
+        setIsConfirming(false);
       } else {
         onDeleted();
       }
     });
   }
 
-  return (
-    <div className="flex flex-col gap-1">
-      <button
-        type="button"
-        onClick={handleDelete}
-        disabled={isPending}
-        className="flex w-full items-center justify-center gap-2 rounded-md border border-red-300 px-4 py-2 font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
-      >
-        <Trash2 className="h-4 w-4" />
-        {isPending ? "מוחקת שיעור…" : "מחק שיעור"}
-      </button>
-      {error && (
-        <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-          {error}
+  if (isConfirming) {
+    return (
+      <div className="flex flex-col gap-2 rounded-md border border-red-300 p-3 dark:border-red-900">
+        <p className="text-sm font-medium text-red-700 dark:text-red-400">
+          למחוק את השיעור? לא ניתן לשחזר.
         </p>
-      )}
-    </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleConfirmDelete}
+            disabled={isPending}
+            className="flex-1 rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {isPending ? "מוחקת…" : "כן, מחק"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsConfirming(false)}
+            disabled={isPending}
+            className="flex-1 rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          >
+            ביטול
+          </button>
+        </div>
+        {error && (
+          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setIsConfirming(true)}
+      className="flex w-full items-center justify-center gap-2 rounded-md border border-red-300 px-4 py-2 font-medium text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
+    >
+      <Trash2 className="h-4 w-4" />
+      מחק שיעור
+    </button>
   );
 }
 

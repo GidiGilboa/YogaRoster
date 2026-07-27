@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { getWeekRange, formatWeekRangeLabel } from "@/lib/week";
 import { CreateLessonButton } from "./lesson-form";
 import { LessonRow } from "./lesson-row";
+import { CopyPreviousWeekButton } from "./copy-previous-week-button";
 
 export default async function LessonsPage({
   searchParams,
@@ -30,7 +31,10 @@ export default async function LessonsPage({
         >
           ← חזרה
         </Link>
-        <h1 className="mb-4 text-xl font-semibold">שיעורי השבוע</h1>
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-xl font-semibold">שיעורי השבוע</h1>
+          <CopyPreviousWeekButton weekOffset={weekOffset} />
+        </div>
 
         <div className="mb-4 flex items-center justify-between">
           <Link
