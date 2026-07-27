@@ -19,6 +19,7 @@ model Teacher {
   passwordHash String
   createdAt    DateTime  @default(now())
   students     Student[]
+  lessons      Lesson[]
 }
 
 model Student {
@@ -28,6 +29,20 @@ model Student {
   firstName String
   lastName  String
   createdAt DateTime @default(now())
+
+  @@index([teacherId])
+}
+
+model Lesson {
+  id              String   @id @default(cuid())
+  teacherId       String
+  teacher         Teacher  @relation(fields: [teacherId], references: [id])
+  title           String
+  startsAt        DateTime
+  durationMinutes Int
+  capacity        Int
+  comment         String?
+  createdAt       DateTime @default(now())
 
   @@index([teacherId])
 }

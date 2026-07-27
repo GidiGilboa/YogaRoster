@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSessionTeacherId } from "@/lib/session";
@@ -13,11 +14,11 @@ export function verifyPassword(password: string, hash: string): Promise<boolean>
   return bcrypt.compare(password, hash);
 }
 
-export async function getCurrentTeacher() {
+export const getCurrentTeacher = cache(async () => {
   const teacherId = await getSessionTeacherId();
   if (!teacherId) return null;
   return db.teacher.findUnique({ where: { id: teacherId } });
-}
+});
 
 export async function requireTeacher() {
   const teacher = await getCurrentTeacher();
