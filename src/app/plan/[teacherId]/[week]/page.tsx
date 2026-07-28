@@ -5,14 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { getWeekRangeFromStartParam, formatWeekRangeLabel, formatWeekStartParam, shiftWeekStart } from "@/lib/week";
 import { getIdentifiedStudent } from "@/lib/studentAuth";
-
-const lessonDateFormatter = new Intl.DateTimeFormat("he-IL", {
-  weekday: "long",
-  day: "numeric",
-  month: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-});
+import { RegistrationList, type PlanLesson } from "./registration-list";
 
 type PlanPageParams = { teacherId: string; week: string };
 
@@ -79,7 +72,7 @@ export default async function PublicPlanPage({ params }: { params: Promise<PlanP
   const prevStart = shiftWeekStart(range.start, -1);
   const nextStart = shiftWeekStart(range.start, 1);
 
-  const [lessons, prevPublished, nextPublished] = await Promise.all([
+  const [lessons, prevPublished, nextPublished, registrations] = await Promise.all([
     db.lesson.findMany({
       where: { teacherId, startsAt: { gte: range.start, lt: range.end } },
       orderBy: { startsAt: "asc" },
@@ -90,7 +83,30 @@ export default async function PublicPlanPage({ params }: { params: Promise<PlanP
     db.weeklyPlanPublication.findUnique({
       where: { teacherId_weekStart: { teacherId, weekStart: nextStart } },
     }),
+    db.registration.findMany({
+      where: { studentId: student.id, status: { in: ["registered", "waitlisted"] } },
+    }),
   ]);
+
+  const lessonIds = lessons.map((lesson) => lesson.id);
+  const registeredCounts = await db.registration.groupBy({
+    by: ["lessonId"],
+    where: { lessonId: { in: lessonIds }, status: "registered" },
+    _count: { _all: true },
+  });
+  const registeredCountByLessonId = new Map(registeredCounts.map((r) => [r.lessonId, r._count._all]));
+
+  const registrationByLessonId = new Map(registrations.map((r) => [r.lessonId, r.status]));
+  const planLessons: PlanLesson[] = lessons.map((lesson) => ({
+    id: lesson.id,
+    title: lesson.title,
+    startsAt: lesson.startsAt,
+    durationMinutes: lesson.durationMinutes,
+    capacity: lesson.capacity,
+    comment: lesson.comment,
+    registeredCount: registeredCountByLessonId.get(lesson.id) ?? 0,
+    registrationStatus: (registrationByLessonId.get(lesson.id) as "registered" | "waitlisted" | undefined) ?? null,
+  }));
 
   return (
     <main className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-12 dark:bg-black">
@@ -133,26 +149,7 @@ export default async function PublicPlanPage({ params }: { params: Promise<PlanP
           )}
         </div>
 
-        <ul className="flex flex-col gap-2">
-          {lessons.length === 0 && (
-            <li className="text-sm text-zinc-500 dark:text-zinc-400">אין שיעורים מתוכננים לשבוע זה.</li>
-          )}
-          {lessons.map((lesson) => (
-            <li
-              key={lesson.id}
-              className="rounded-md border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950"
-            >
-              <div className="font-medium">{lesson.title}</div>
-              <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                {lessonDateFormatter.format(lesson.startsAt)} · {lesson.durationMinutes} דקות · עד{" "}
-                {lesson.capacity} תלמידות
-              </div>
-              {lesson.comment && (
-                <div className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{lesson.comment}</div>
-              )}
-            </li>
-          ))}
-        </ul>
+        <RegistrationList teacherId={teacherId} lessons={planLessons} />
       </div>
     </main>
   );

@@ -3,7 +3,7 @@ import { requireTeacher } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getWeekRange, formatWeekRangeLabel, formatWeekStartParam } from "@/lib/week";
 import { CreateLessonButton } from "./lesson-form";
-import { LessonRow } from "./lesson-row";
+import { LessonRow, type RosterEntry } from "./lesson-row";
 import { LessonsToolbar } from "./lessons-toolbar";
 
 export default async function LessonsPage({
@@ -16,10 +16,46 @@ export default async function LessonsPage({
   const weekOffset = Number.isInteger(Number(week)) ? Number(week) : 0;
   const { start, end } = getWeekRange(weekOffset);
 
-  const lessons = await db.lesson.findMany({
-    where: { teacherId: teacher.id, startsAt: { gte: start, lt: end } },
-    orderBy: { startsAt: "asc" },
+  const [lessons, allStudents] = await Promise.all([
+    db.lesson.findMany({
+      where: { teacherId: teacher.id, startsAt: { gte: start, lt: end } },
+      orderBy: { startsAt: "asc" },
+    }),
+    db.student.findMany({
+      where: { teacherId: teacher.id },
+      orderBy: { firstName: "asc" },
+    }),
+  ]);
+
+  const lessonIds = lessons.map((lesson) => lesson.id);
+  const registrations = await db.registration.findMany({
+    where: { lessonId: { in: lessonIds }, status: { in: ["registered", "waitlisted"] } },
+    include: { student: true },
+    orderBy: { createdAt: "asc" },
   });
+
+  const rosterByLessonId = new Map<string, RosterEntry[]>();
+  for (const registration of registrations) {
+    const entry: RosterEntry = {
+      registrationId: registration.id,
+      status: registration.status as "registered" | "waitlisted",
+      student: {
+        id: registration.student.id,
+        firstName: registration.student.firstName,
+        lastName: registration.student.lastName,
+        phone: registration.student.phone,
+      },
+    };
+    const list = rosterByLessonId.get(registration.lessonId) ?? [];
+    list.push(entry);
+    rosterByLessonId.set(registration.lessonId, list);
+  }
+
+  const studentOptions = allStudents.map((student) => ({
+    id: student.id,
+    firstName: student.firstName,
+    lastName: student.lastName,
+  }));
 
   return (
     <main className="flex flex-1 flex-col items-center px-6 py-12">
@@ -44,7 +80,12 @@ export default async function LessonsPage({
             <li className="text-sm text-zinc-500 dark:text-zinc-400">אין עדיין שיעורים השבוע.</li>
           )}
           {lessons.map((lesson) => (
-            <LessonRow key={lesson.id} lesson={lesson} />
+            <LessonRow
+              key={lesson.id}
+              lesson={lesson}
+              roster={rosterByLessonId.get(lesson.id) ?? []}
+              allStudents={studentOptions}
+            />
           ))}
         </ul>
         <CreateLessonButton weekOffset={weekOffset} />

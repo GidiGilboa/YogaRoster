@@ -10,10 +10,39 @@ const timeFormatter = new Intl.DateTimeFormat("he-IL", {
   hour12: false,
 });
 
-export function LessonRow({ lesson }: { lesson: LessonData }) {
+export type StudentOption = {
+  id: string;
+  firstName: string;
+  lastName: string;
+};
+
+export type RosterEntry = {
+  registrationId: string;
+  status: "registered" | "waitlisted";
+  student: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+  };
+};
+
+export function LessonRow({
+  lesson,
+  roster,
+  allStudents,
+}: {
+  lesson: LessonData;
+  roster: RosterEntry[];
+  allStudents: StudentOption[];
+}) {
+  const registeredCount = roster.filter((entry) => entry.status === "registered").length;
+
   return (
     <LessonFormModal
       lesson={lesson}
+      roster={roster}
+      allStudents={allStudents}
       trigger={(open) => (
         <li>
           <button
@@ -29,7 +58,7 @@ export function LessonRow({ lesson }: { lesson: LessonData }) {
             <div className="min-w-0 flex-1 px-2">
               <div className="font-medium">{lesson.title}</div>
               <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                {lesson.durationMinutes} דקות · עד {lesson.capacity} תלמידות
+                {lesson.durationMinutes} דקות · {registeredCount}/{lesson.capacity} נרשמו
                 {lesson.comment ? ` · ${lesson.comment}` : ""}
               </div>
             </div>
