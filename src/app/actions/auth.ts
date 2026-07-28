@@ -37,14 +37,7 @@ export async function signupAction(
 
   const passwordHash = await hashPassword(password);
   const teacher = await db.teacher.create({
-    data: {
-      name,
-      email,
-      passwordHash,
-      students: {
-        create: { firstName: "Student A", lastName: email },
-      },
-    },
+    data: { name, email, passwordHash },
   });
 
   await createSession(teacher.id);

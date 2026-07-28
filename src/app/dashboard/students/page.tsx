@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { requireTeacher } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { CreateStudentButton } from "./student-form";
+import { StudentRow } from "./student-row";
 
 export default async function StudentsPage() {
   const teacher = await requireTeacher();
@@ -19,16 +21,15 @@ export default async function StudentsPage() {
           ← חזרה
         </Link>
         <h1 className="mb-4 text-xl font-semibold">התלמידים שלך</h1>
-        <ul className="flex flex-col gap-2">
+        <ul className="mb-6 flex flex-col gap-2">
+          {students.length === 0 && (
+            <li className="text-sm text-zinc-500 dark:text-zinc-400">עדיין אין תלמידות ברשימה.</li>
+          )}
           {students.map((student) => (
-            <li
-              key={student.id}
-              className="rounded-md border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950"
-            >
-              {student.firstName} {student.lastName}
-            </li>
+            <StudentRow key={student.id} student={student} />
           ))}
         </ul>
+        <CreateStudentButton />
       </div>
     </main>
   );

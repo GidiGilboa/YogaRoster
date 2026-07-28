@@ -20,6 +20,7 @@ model Teacher {
   createdAt    DateTime  @default(now())
   students     Student[]
   lessons      Lesson[]
+  publications WeeklyPlanPublication[]
 }
 
 model Student {
@@ -28,8 +29,12 @@ model Student {
   teacher   Teacher  @relation(fields: [teacherId], references: [id])
   firstName String
   lastName  String
+  phone     String
+  email     String?
+  credits   Int      @default(0)
   createdAt DateTime @default(now())
 
+  @@unique([teacherId, phone])
   @@index([teacherId])
 }
 
@@ -45,4 +50,14 @@ model Lesson {
   createdAt       DateTime @default(now())
 
   @@index([teacherId])
+}
+
+model WeeklyPlanPublication {
+  id          String   @id @default(cuid())
+  teacherId   String
+  teacher     Teacher  @relation(fields: [teacherId], references: [id])
+  weekStart   DateTime
+  publishedAt DateTime @default(now())
+
+  @@unique([teacherId, weekStart])
 }

@@ -110,8 +110,7 @@ export async function deleteLessonAction(lessonId: string): Promise<LessonAction
 }
 
 export type CopyWeekActionState = {
-  status: "success" | "info";
-  message: string;
+  status: "success" | "empty" | "past";
 };
 
 export async function copyPreviousWeekAction(weekOffset: number): Promise<CopyWeekActionState> {
@@ -119,7 +118,7 @@ export async function copyPreviousWeekAction(weekOffset: number): Promise<CopyWe
 
   const current = getWeekRange(weekOffset);
   if (current.end <= new Date()) {
-    return { status: "info", message: "לא ניתן להעתיק שיעורים לשבוע שכבר עבר." };
+    return { status: "past" };
   }
 
   const previous = getWeekRange(weekOffset - 1);
@@ -128,7 +127,7 @@ export async function copyPreviousWeekAction(weekOffset: number): Promise<CopyWe
   });
 
   if (previousLessons.length === 0) {
-    return { status: "info", message: "לא נמצאו שיעורים בשבוע הקודם להעתקה." };
+    return { status: "empty" };
   }
 
   await db.lesson.createMany({
@@ -147,5 +146,5 @@ export async function copyPreviousWeekAction(weekOffset: number): Promise<CopyWe
   });
 
   revalidatePath("/dashboard/lessons");
-  return { status: "success", message: `הועתקו ${previousLessons.length} שיעורים משבוע קודם.` };
+  return { status: "success" };
 }
