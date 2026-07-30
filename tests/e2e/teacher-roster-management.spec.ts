@@ -6,7 +6,7 @@ test(
   { tag: "@fast" },
   async ({ page }) => {
     await signupTeacher(page);
-    await createLessonViaUI(page, { title: "שיעור לניהול רשימה", capacity: 1 });
+    await createLessonViaUI(page, { comment: "שיעור לניהול רשימה", capacity: 1 });
     await addStudentViaUI(page, { firstName: "תלמידה", lastName: "אחת", phone: "0504445555" });
     await addStudentViaUI(page, { firstName: "תלמידה", lastName: "שתיים", phone: "0505556666" });
 

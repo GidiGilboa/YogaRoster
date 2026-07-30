@@ -88,7 +88,11 @@ export default async function LessonsPage({
             />
           ))}
         </ul>
-        <CreateLessonButton weekOffset={weekOffset} />
+        <CreateLessonButton
+          weekOffset={weekOffset}
+          defaultCapacity={teacher.defaultLessonCapacity}
+          defaultDuration={teacher.defaultLessonDuration}
+        />
       </div>
     </main>
   );

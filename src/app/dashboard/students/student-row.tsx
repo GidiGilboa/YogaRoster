@@ -2,12 +2,22 @@
 
 import { ChevronLeft } from "lucide-react";
 import { formatIsraeliPhone } from "@/lib/phone";
-import { StudentFormModal, type StudentData } from "./student-form";
+import { StudentFormModal, type StudentData, type StudentOption, type DependentLink } from "./student-form";
 
-export function StudentRow({ student }: { student: StudentData }) {
+export function StudentRow({
+  student,
+  allStudents,
+  links,
+}: {
+  student: StudentData;
+  allStudents: StudentOption[];
+  links: DependentLink[];
+}) {
   return (
     <StudentFormModal
       student={student}
+      allStudents={allStudents}
+      links={links}
       trigger={(open) => (
         <li>
           <button

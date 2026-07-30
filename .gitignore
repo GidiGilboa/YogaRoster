@@ -47,6 +47,9 @@ next-env.d.ts
 *.db
 *.db-journal
 
+# user-uploaded content
+/public/uploads
+
 # testing
 /playwright-report
 /test-results

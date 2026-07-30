@@ -1,8 +1,14 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import "@/test/nextMocks";
 import { setupActionTestDb } from "@/test/actionTestContext";
-import { createTestStudent, createTestTeacher } from "@/test/factories";
+import { createTestLesson, createTestStudent, createTestTeacher } from "@/test/factories";
 import type { StudentActionState } from "./students";
+
+function daysAgo(days: number): Date {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d;
+}
 
 function formData(fields: Record<string, string>): FormData {
   const fd = new FormData();
@@ -209,5 +215,74 @@ describe("updateStudentAction", () => {
     const result = await students.updateStudentAction(student.id, emptyState, fd);
 
     expect(result.error).toBeUndefined();
+  });
+});
+
+describe("getStudentLessonHistoryAction", () => {
+  it("returns registered/attended lessons from the last 3 months, newest first", async () => {
+    const { teacher } = await createTestTeacher(ctx.db);
+    await loginAs(teacher.id);
+    const student = await createTestStudent(ctx.db, teacher.id);
+
+    const older = await createTestLesson(ctx.db, teacher.id, { startsAt: daysAgo(10) });
+    const newer = await createTestLesson(ctx.db, teacher.id, { startsAt: daysAgo(2) });
+    await ctx.db.registration.create({
+      data: { studentId: student.id, lessonId: older.id, status: "attended", creditDeducted: true },
+    });
+    await ctx.db.registration.create({
+      data: { studentId: student.id, lessonId: newer.id, status: "registered", creditDeducted: true },
+    });
+
+    const result = await students.getStudentLessonHistoryAction(student.id);
+
+    expect(result.error).toBeUndefined();
+    expect(result.entries).toHaveLength(2);
+    expect(result.entries?.[0].lesson.id).toBe(newer.id);
+    expect(result.entries?.[1].lesson.id).toBe(older.id);
+  });
+
+  it("excludes cancelled and waitlisted registrations", async () => {
+    const { teacher } = await createTestTeacher(ctx.db);
+    await loginAs(teacher.id);
+    const student = await createTestStudent(ctx.db, teacher.id);
+    const lesson1 = await createTestLesson(ctx.db, teacher.id, { startsAt: daysAgo(2) });
+    const lesson2 = await createTestLesson(ctx.db, teacher.id, { startsAt: daysAgo(3) });
+    await ctx.db.registration.create({
+      data: { studentId: student.id, lessonId: lesson1.id, status: "cancelled", creditDeducted: false },
+    });
+    await ctx.db.registration.create({
+      data: { studentId: student.id, lessonId: lesson2.id, status: "waitlisted", creditDeducted: false },
+    });
+
+    const result = await students.getStudentLessonHistoryAction(student.id);
+
+    expect(result.entries).toHaveLength(0);
+  });
+
+  it("excludes lessons older than 3 months", async () => {
+    const { teacher } = await createTestTeacher(ctx.db);
+    await loginAs(teacher.id);
+    const student = await createTestStudent(ctx.db, teacher.id);
+    const old = new Date();
+    old.setMonth(old.getMonth() - 4);
+    const lesson = await createTestLesson(ctx.db, teacher.id, { startsAt: old });
+    await ctx.db.registration.create({
+      data: { studentId: student.id, lessonId: lesson.id, status: "attended", creditDeducted: true },
+    });
+
+    const result = await students.getStudentLessonHistoryAction(student.id);
+
+    expect(result.entries).toHaveLength(0);
+  });
+
+  it("does not allow a teacher to view another teacher's student history", async () => {
+    const { teacher: owner } = await createTestTeacher(ctx.db);
+    const { teacher: intruder } = await createTestTeacher(ctx.db);
+    const student = await createTestStudent(ctx.db, owner.id);
+
+    await loginAs(intruder.id);
+    const result = await students.getStudentLessonHistoryAction(student.id);
+
+    expect(result.error).toBeTruthy();
   });
 });

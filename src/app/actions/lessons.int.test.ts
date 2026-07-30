@@ -38,7 +38,6 @@ describe("createLessonAction", () => {
     await loginAs(teacher.id);
 
     const fd = formData({
-      title: "שיעור בוקר",
       startsAt: futureDate().toISOString(),
       duration: "60",
       capacity: "12",
@@ -48,28 +47,17 @@ describe("createLessonAction", () => {
     const result = await lessons.createLessonAction(emptyState, fd);
 
     expect(result.error).toBeUndefined();
-    const created = await ctx.db.lesson.findFirst({ where: { teacherId: teacher.id, title: "שיעור בוקר" } });
+    const created = await ctx.db.lesson.findFirst({ where: { teacherId: teacher.id } });
     expect(created).not.toBeNull();
     expect(created?.capacity).toBe(12);
-  });
-
-  it("rejects a missing title without creating a lesson", async () => {
-    const { teacher } = await createTestTeacher(ctx.db);
-    await loginAs(teacher.id);
-
-    const fd = formData({ title: "", startsAt: futureDate().toISOString(), duration: "60", capacity: "10" });
-    const result = await lessons.createLessonAction(emptyState, fd);
-
-    expect(result.error).toBeTruthy();
-    const count = await ctx.db.lesson.count({ where: { teacherId: teacher.id } });
-    expect(count).toBe(0);
+    expect(created?.comment).toBe("מזרן משלכם");
   });
 
   it("rejects a non-positive capacity", async () => {
     const { teacher } = await createTestTeacher(ctx.db);
     await loginAs(teacher.id);
 
-    const fd = formData({ title: "שיעור", startsAt: futureDate().toISOString(), duration: "60", capacity: "0" });
+    const fd = formData({ startsAt: futureDate().toISOString(), duration: "60", capacity: "0" });
     const result = await lessons.createLessonAction(emptyState, fd);
 
     expect(result.error).toBeTruthy();
@@ -79,7 +67,7 @@ describe("createLessonAction", () => {
     const { teacher } = await createTestTeacher(ctx.db);
     await loginAs(teacher.id);
 
-    const fd = formData({ title: "שיעור", startsAt: futureDate().toISOString(), duration: "0", capacity: "10" });
+    const fd = formData({ startsAt: futureDate().toISOString(), duration: "0", capacity: "10" });
     const result = await lessons.createLessonAction(emptyState, fd);
 
     expect(result.error).toBeTruthy();
@@ -89,7 +77,7 @@ describe("createLessonAction", () => {
     const { teacher } = await createTestTeacher(ctx.db);
     await loginAs(teacher.id);
 
-    const fd = formData({ title: "שיעור", startsAt: "not-a-date", duration: "60", capacity: "10" });
+    const fd = formData({ startsAt: "not-a-date", duration: "60", capacity: "10" });
     const result = await lessons.createLessonAction(emptyState, fd);
 
     expect(result.error).toBeTruthy();
@@ -101,7 +89,7 @@ describe("createLessonAction", () => {
 
     const past = new Date();
     past.setDate(past.getDate() - 1);
-    const fd = formData({ title: "שיעור עבר", startsAt: past.toISOString(), duration: "60", capacity: "10" });
+    const fd = formData({ startsAt: past.toISOString(), duration: "60", capacity: "10" });
 
     const result = await lessons.createLessonAction(emptyState, fd);
 
@@ -115,10 +103,9 @@ describe("updateLessonAction", () => {
   it("updates an existing lesson's fields", async () => {
     const { teacher } = await createTestTeacher(ctx.db);
     await loginAs(teacher.id);
-    const lesson = await createTestLesson(ctx.db, teacher.id, { title: "לפני" });
+    const lesson = await createTestLesson(ctx.db, teacher.id, { capacity: 5 });
 
     const fd = formData({
-      title: "אחרי",
       startsAt: futureDate(5).toISOString(),
       duration: "45",
       capacity: "8",
@@ -127,22 +114,22 @@ describe("updateLessonAction", () => {
 
     expect(result.error).toBeUndefined();
     const updated = await ctx.db.lesson.findUnique({ where: { id: lesson.id } });
-    expect(updated?.title).toBe("אחרי");
     expect(updated?.capacity).toBe(8);
+    expect(updated?.durationMinutes).toBe(45);
   });
 
   it("does not allow a teacher to edit another teacher's lesson (multi-tenant isolation)", async () => {
     const { teacher: owner } = await createTestTeacher(ctx.db);
     const { teacher: intruder } = await createTestTeacher(ctx.db);
-    const lesson = await createTestLesson(ctx.db, owner.id, { title: "מקורי" });
+    const lesson = await createTestLesson(ctx.db, owner.id, { capacity: 9 });
 
     await loginAs(intruder.id);
-    const fd = formData({ title: "נחטף", startsAt: futureDate().toISOString(), duration: "60", capacity: "10" });
+    const fd = formData({ startsAt: futureDate().toISOString(), duration: "60", capacity: "2" });
     const result = await lessons.updateLessonAction(lesson.id, emptyState, fd);
 
     expect(result.error).toBeTruthy();
     const untouched = await ctx.db.lesson.findUnique({ where: { id: lesson.id } });
-    expect(untouched?.title).toBe("מקורי");
+    expect(untouched?.capacity).toBe(9);
   });
 
   it("rejects invalid input on update", async () => {
@@ -150,7 +137,7 @@ describe("updateLessonAction", () => {
     await loginAs(teacher.id);
     const lesson = await createTestLesson(ctx.db, teacher.id);
 
-    const fd = formData({ title: "", startsAt: futureDate().toISOString(), duration: "60", capacity: "10" });
+    const fd = formData({ startsAt: futureDate().toISOString(), duration: "60", capacity: "0" });
     const result = await lessons.updateLessonAction(lesson.id, emptyState, fd);
 
     expect(result.error).toBeTruthy();
@@ -207,7 +194,6 @@ describe("copyPreviousWeekAction", () => {
 
     const thisWeek = getWeekRange(10); // far enough ahead to be uncontaminated by other tests
     const original = await createTestLesson(ctx.db, teacher.id, {
-      title: "שיעור לשכפול",
       startsAt: new Date(thisWeek.start.getTime() + 24 * 60 * 60 * 1000),
       capacity: 7,
     });
@@ -220,7 +206,6 @@ describe("copyPreviousWeekAction", () => {
       where: { teacherId: teacher.id, startsAt: { gte: nextWeek.start, lt: nextWeek.end } },
     });
     expect(copied).toHaveLength(1);
-    expect(copied[0].title).toBe("שיעור לשכפול");
     expect(copied[0].capacity).toBe(7);
     expect(copied[0].startsAt.getTime()).toBe(original.startsAt.getTime() + 7 * 24 * 60 * 60 * 1000);
   });

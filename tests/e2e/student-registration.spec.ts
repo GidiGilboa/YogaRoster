@@ -6,13 +6,13 @@ test(
   { tag: "@fast" },
   async ({ page, context, browser }) => {
     await signupTeacher(page);
-    await createLessonViaUI(page, { title: "פילאטיס בוקר", capacity: 1 });
+    await createLessonViaUI(page, { capacity: 1 });
     const planUrl = await publishWeekAndGetLink(page, context);
 
     const studentAContext = await browser.newContext();
     const studentA = await studentAContext.newPage();
     await identifyAsStudent(studentA, planUrl, { name: "תלמידה ראשונה", phone: "0501112222" });
-    await studentA.getByLabel(/בחירת שיעור פילאטיס בוקר/).check();
+    await studentA.getByRole("checkbox").check();
     await studentA.getByRole("button", { name: "עדכון הרשמה" }).click();
 
     await expect(studentA.getByText("נרשמת בהצלחה")).toBeVisible();
@@ -21,7 +21,7 @@ test(
     const studentBContext = await browser.newContext();
     const studentB = await studentBContext.newPage();
     await identifyAsStudent(studentB, planUrl, { name: "תלמידה שנייה", phone: "0502223333" });
-    await studentB.getByLabel(/בחירת שיעור פילאטיס בוקר/).check();
+    await studentB.getByRole("checkbox").check();
     await studentB.getByRole("button", { name: "עדכון הרשמה" }).click();
 
     await expect(studentB.getByText("נוספת לרשימת המתנה")).toBeVisible();
@@ -34,7 +34,7 @@ test(
 
 test("a returning student is recognized by her session cookie and skips re-identifying", async ({ page, context, browser }) => {
   await signupTeacher(page);
-  await createLessonViaUI(page, { title: "יוגה זרימה", capacity: 5 });
+  await createLessonViaUI(page, { capacity: 5 });
   const planUrl = await publishWeekAndGetLink(page, context);
 
   const studentContext = await browser.newContext();

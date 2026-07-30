@@ -105,3 +105,52 @@ export async function updateStudentAction(
   revalidatePath("/dashboard/students");
   return {};
 }
+
+export type StudentLessonHistoryEntry = {
+  registrationId: string;
+  status: string;
+  lesson: {
+    id: string;
+    startsAt: Date;
+    durationMinutes: number;
+  };
+};
+
+export type StudentLessonHistoryResult = {
+  error?: string;
+  entries?: StudentLessonHistoryEntry[];
+};
+
+export async function getStudentLessonHistoryAction(studentId: string): Promise<StudentLessonHistoryResult> {
+  const teacher = await requireTeacher();
+
+  const student = await db.student.findUnique({ where: { id: studentId } });
+  if (!student || student.teacherId !== teacher.id) {
+    return { error: "התלמידה לא נמצאה." };
+  }
+
+  const threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+  const registrations = await db.registration.findMany({
+    where: {
+      studentId,
+      status: { in: ["registered", "attended"] },
+      lesson: { startsAt: { gte: threeMonthsAgo } },
+    },
+    include: { lesson: true },
+    orderBy: { lesson: { startsAt: "desc" } },
+  });
+
+  return {
+    entries: registrations.map((registration) => ({
+      registrationId: registration.id,
+      status: registration.status,
+      lesson: {
+        id: registration.lesson.id,
+        startsAt: registration.lesson.startsAt,
+        durationMinutes: registration.lesson.durationMinutes,
+      },
+    })),
+  };
+}

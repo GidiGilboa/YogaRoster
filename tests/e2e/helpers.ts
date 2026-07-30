@@ -14,6 +14,14 @@ export async function signupTeacher(page: Page, overrides: Partial<TeacherAccoun
     password: overrides.password ?? "password123",
   };
 
+  // The app rate-limits signup by IP. Playwright's browser doesn't send a
+  // real distinguishing IP, so every test would otherwise share one bucket
+  // against the dev server and trip the limit. Give each test its own
+  // synthetic IP, same as distinct real visitors would have.
+  await page.context().setExtraHTTPHeaders({
+    "x-forwarded-for": `10.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+  });
+
   await page.goto("/signup");
   await page.getByLabel("שם").fill(account.name);
   await page.getByLabel("אימייל").fill(account.email);
@@ -30,9 +38,13 @@ export async function signupTeacher(page: Page, overrides: Partial<TeacherAccoun
  * selectable day in the current-week picker) so the lesson is guaranteed to
  * be in the future regardless of what day/time the suite happens to run.
  */
+/**
+ * Lessons have no title field — pass a unique `comment` when a test needs
+ * to reliably pick out one specific lesson on screen afterward.
+ */
 export async function createLessonViaUI(
   page: Page,
-  opts: { title: string; capacity: number; duration?: 45 | 60 | 75 | 90 }
+  opts: { capacity: number; duration?: 45 | 60 | 75 | 90; comment?: string }
 ): Promise<void> {
   const DAY_LETTERS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
   const todayIndex = new Date().getDay();
@@ -42,7 +54,6 @@ export async function createLessonViaUI(
   await page.goto("/dashboard/lessons");
   await page.getByRole("button", { name: "+ הוספת שיעור" }).click();
 
-  await page.getByLabel("כותרת השיעור").fill(opts.title);
   await page.getByText(`יום ${DAY_LETTERS[targetIndex]}`, { exact: false }).click();
   if (isSaturday) {
     await page.getByLabel("שעת התחלה").fill("23:55");
@@ -51,9 +62,16 @@ export async function createLessonViaUI(
     await page.getByLabel("משך").selectOption(String(opts.duration));
   }
   await page.getByLabel("מספר מקומות מקסימלי").fill(String(opts.capacity));
+  if (opts.comment) {
+    await page.getByLabel("הערה", { exact: false }).fill(opts.comment);
+  }
 
   await page.getByRole("button", { name: "יצירת שיעור" }).click();
-  await expect(page.getByText(opts.title)).toBeVisible();
+  if (opts.comment) {
+    await expect(page.getByText(opts.comment)).toBeVisible();
+  } else {
+    await expect(page.getByText(`${opts.capacity} נרשמו`, { exact: false })).toBeVisible();
+  }
 }
 
 export async function addStudentViaUI(
@@ -94,6 +112,12 @@ export async function publishWeekAndGetLink(page: Page, context: BrowserContext)
 }
 
 export async function identifyAsStudent(page: Page, planUrl: string, opts: { name: string; phone: string }): Promise<void> {
+  // Same rationale as signupTeacher: identify is rate-limited by IP, and
+  // the dev server is shared across all e2e tests (and reused across local
+  // re-runs), so give each simulated student her own synthetic IP.
+  await page.context().setExtraHTTPHeaders({
+    "x-forwarded-for": `10.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+  });
   await page.goto(planUrl);
   await page.waitForURL("**/identify**");
   await page.getByLabel("שם מלא").fill(opts.name);

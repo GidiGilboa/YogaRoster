@@ -10,7 +10,6 @@ export type LessonActionState = {
 };
 
 type ParsedLessonInput = {
-  title: string;
   startsAt: Date;
   durationMinutes: number;
   capacity: number;
@@ -18,15 +17,10 @@ type ParsedLessonInput = {
 };
 
 function parseLessonForm(formData: FormData): ParsedLessonInput | { error: string } {
-  const title = String(formData.get("title") ?? "").trim();
   const startsAtRaw = String(formData.get("startsAt") ?? "");
   const durationRaw = String(formData.get("duration") ?? "");
   const capacityRaw = String(formData.get("capacity") ?? "");
   const comment = String(formData.get("comment") ?? "").trim();
-
-  if (!title) {
-    return { error: "יש להזין כותרת לשיעור." };
-  }
 
   const startsAt = startsAtRaw ? new Date(startsAtRaw) : null;
   if (!startsAt || Number.isNaN(startsAt.getTime())) {
@@ -43,7 +37,7 @@ function parseLessonForm(formData: FormData): ParsedLessonInput | { error: strin
     return { error: "יש להזין מספר מקומות תקין." };
   }
 
-  return { title, startsAt, durationMinutes: duration, capacity, comment: comment || null };
+  return { startsAt, durationMinutes: duration, capacity, comment: comment || null };
 }
 
 export async function createLessonAction(
@@ -136,7 +130,6 @@ export async function copyPreviousWeekAction(weekOffset: number): Promise<CopyWe
       startsAt.setDate(startsAt.getDate() + 7);
       return {
         teacherId: teacher.id,
-        title: lesson.title,
         startsAt,
         durationMinutes: lesson.durationMinutes,
         capacity: lesson.capacity,

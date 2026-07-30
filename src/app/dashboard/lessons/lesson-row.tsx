@@ -56,11 +56,12 @@ export function LessonRow({
             </div>
 
             <div className="min-w-0 flex-1 px-2">
-              <div className="font-medium">{lesson.title}</div>
-              <div className="text-sm text-zinc-600 dark:text-zinc-400">
+              <div className="font-medium">
                 {lesson.durationMinutes} דקות · {registeredCount}/{lesson.capacity} נרשמו
-                {lesson.comment ? ` · ${lesson.comment}` : ""}
               </div>
+              {lesson.comment && (
+                <div className="text-sm text-zinc-600 dark:text-zinc-400">{lesson.comment}</div>
+              )}
             </div>
 
             <ChevronLeft className="h-5 w-5 shrink-0 text-zinc-400" />

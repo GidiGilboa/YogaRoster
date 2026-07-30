@@ -23,7 +23,6 @@ const DURATION_OPTIONS = [45, 60, 75, 90];
 
 export type LessonData = {
   id: string;
-  title: string;
   startsAt: Date;
   durationMinutes: number;
   capacity: number;
@@ -303,11 +302,10 @@ function RosterView({
     <div>
       <div className="mb-4 flex items-start justify-between">
         <div className="text-right">
-          <div className="text-lg font-semibold">{lesson.title}</div>
-          <div className="text-sm text-zinc-600 dark:text-zinc-400">
-            {lessonDetailFormatter.format(lesson.startsAt)} · {timeFormatter.format(lesson.startsAt)} ·{" "}
-            {lesson.durationMinutes} דקות
+          <div className="text-lg font-semibold">
+            {lessonDetailFormatter.format(lesson.startsAt)} · {timeFormatter.format(lesson.startsAt)}
           </div>
+          <div className="text-sm text-zinc-600 dark:text-zinc-400">{lesson.durationMinutes} דקות</div>
         </div>
         <button
           type="button"
@@ -367,12 +365,16 @@ export function LessonFormModal({
   weekOffset = 0,
   roster = [],
   allStudents = [],
+  defaultCapacity = 10,
+  defaultDuration = 60,
   trigger,
 }: {
   lesson?: LessonData;
   weekOffset?: number;
   roster?: RosterEntry[];
   allStudents?: StudentOption[];
+  defaultCapacity?: number;
+  defaultDuration?: number;
   trigger: (open: () => void) => React.ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -402,6 +404,13 @@ export function LessonFormModal({
   const [selectedDayIndex, setSelectedDayIndex] = useState(defaultDayIndex);
   const [time, setTime] = useState(() => (lesson ? toTimeValue(lesson.startsAt) : "18:00"));
   const formRef = useRef<HTMLFormElement>(null);
+
+  const effectiveDuration = lesson?.durationMinutes ?? defaultDuration;
+  const durationOptions = useMemo(() => {
+    const options = new Set(DURATION_OPTIONS);
+    options.add(effectiveDuration);
+    return Array.from(options).sort((a, b) => a - b);
+  }, [effectiveDuration]);
 
   const submitAction = isEdit
     ? (prevState: LessonActionState, formData: FormData) => updateLessonAction(lesson!.id, prevState, formData)
@@ -465,20 +474,6 @@ export function LessonFormModal({
                   />
 
                   <div className="flex flex-col gap-1">
-                    <label htmlFor="title" className="text-sm font-medium">
-                      כותרת השיעור
-                    </label>
-                    <input
-                      id="title"
-                      name="title"
-                      type="text"
-                      required
-                      defaultValue={lesson?.title}
-                      className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
                     <span className="text-sm font-medium">יום בשבוע</span>
                     <div className="grid grid-cols-4 gap-2">
                       {weekdays.map((day, i) => {
@@ -528,10 +523,10 @@ export function LessonFormModal({
                       <select
                         id="duration"
                         name="duration"
-                        defaultValue={lesson?.durationMinutes ?? 60}
+                        defaultValue={effectiveDuration}
                         className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
                       >
-                        {DURATION_OPTIONS.map((minutes) => (
+                        {durationOptions.map((minutes) => (
                           <option key={minutes} value={minutes}>
                             {minutes} דקות
                           </option>
@@ -550,7 +545,7 @@ export function LessonFormModal({
                       type="number"
                       min={1}
                       required
-                      defaultValue={lesson?.capacity}
+                      defaultValue={lesson?.capacity ?? defaultCapacity}
                       className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
                     />
                   </div>
@@ -603,10 +598,20 @@ export function LessonFormModal({
   );
 }
 
-export function CreateLessonButton({ weekOffset = 0 }: { weekOffset?: number }) {
+export function CreateLessonButton({
+  weekOffset = 0,
+  defaultCapacity,
+  defaultDuration,
+}: {
+  weekOffset?: number;
+  defaultCapacity?: number;
+  defaultDuration?: number;
+}) {
   return (
     <LessonFormModal
       weekOffset={weekOffset}
+      defaultCapacity={defaultCapacity}
+      defaultDuration={defaultDuration}
       trigger={(open) => (
         <button
           type="button"

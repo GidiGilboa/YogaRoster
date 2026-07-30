@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { createStudentSession } from "@/lib/studentAuth";
+import { isValidIsraeliMobile, normalizePhone } from "@/lib/phone";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export type IdentifyActionState = {
   error?: string;
@@ -14,14 +16,19 @@ export async function identifyStudentAction(
   _prevState: IdentifyActionState,
   formData: FormData
 ): Promise<IdentifyActionState> {
+  const ip = await getClientIp();
+  if (!checkRateLimit(`identify:${ip}`, 10, 5 * 60 * 1000)) {
+    return { error: "יותר מדי ניסיונות. נסי שוב בעוד כמה דקות." };
+  }
+
   const name = String(formData.get("name") ?? "").trim();
-  const phone = String(formData.get("phone") ?? "").trim();
+  const phone = normalizePhone(String(formData.get("phone") ?? ""));
 
   if (!name) {
     return { error: "יש להזין שם." };
   }
-  if (!phone) {
-    return { error: "יש להזין מספר טלפון." };
+  if (!isValidIsraeliMobile(phone)) {
+    return { error: "מספר הטלפון חייב להתחיל ב-05 ולכלול 10 ספרות." };
   }
 
   const teacher = await db.teacher.findUnique({ where: { id: teacherId } });

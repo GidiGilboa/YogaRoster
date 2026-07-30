@@ -60,7 +60,6 @@ export async function createTestLesson(
   db: PrismaClient,
   teacherId: string,
   overrides: Partial<{
-    title: string;
     startsAt: Date;
     durationMinutes: number;
     capacity: number;
@@ -73,7 +72,6 @@ export async function createTestLesson(
   return db.lesson.create({
     data: {
       teacherId,
-      title: overrides.title ?? `שיעור בדיקה ${unique()}`,
       startsAt: overrides.startsAt ?? defaultStart,
       durationMinutes: overrides.durationMinutes ?? 60,
       capacity: overrides.capacity ?? 10,

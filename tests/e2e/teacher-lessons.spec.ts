@@ -7,7 +7,7 @@ test(
   async ({ page }) => {
     await signupTeacher(page);
 
-    await createLessonViaUI(page, { title: "שיעור בוקר לשכפול", capacity: 8, duration: 60 });
+    await createLessonViaUI(page, { comment: "שיעור בוקר לשכפול", capacity: 8, duration: 60 });
     await expect(page.getByText("שיעור בוקר לשכפול")).toBeVisible();
 
     // Move to next week and copy this week's plan into it.

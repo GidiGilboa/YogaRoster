@@ -7,7 +7,6 @@ import { requireTeacher } from "@/lib/auth";
 
 export type RegistrationOutcome = {
   lessonId: string;
-  title: string;
   status: "registered" | "waitlisted" | "cancelled";
 };
 
@@ -23,9 +22,25 @@ export async function updateRegistrationsAction(
   _prevState: RegisterActionState,
   formData: FormData
 ): Promise<RegisterActionState> {
-  const student = await getIdentifiedStudent(teacherId);
-  if (!student) {
+  const identifiedStudent = await getIdentifiedStudent(teacherId);
+  if (!identifiedStudent) {
     return { error: "יש להזדהות מחדש." };
+  }
+
+  const actingStudentId = String(formData.get("actingStudentId") ?? "");
+  let student = identifiedStudent;
+  if (actingStudentId && actingStudentId !== identifiedStudent.id) {
+    const link = await db.studentLink.findUnique({
+      where: { registrarId_dependentId: { registrarId: identifiedStudent.id, dependentId: actingStudentId } },
+    });
+    if (!link) {
+      return { error: "אין הרשאה לרשום את התלמידה הזו." };
+    }
+    const dependent = await db.student.findUnique({ where: { id: actingStudentId } });
+    if (!dependent || dependent.teacherId !== teacherId) {
+      return { error: "התלמידה לא נמצאה." };
+    }
+    student = dependent;
   }
 
   const allLessonIds = formData.getAll("allLessonIds").map(String);
@@ -59,7 +74,7 @@ export async function updateRegistrationsAction(
             where: { id: existing.id },
             data: { status: "cancelled", creditDeducted: false },
           });
-          return { lessonId, title: lesson.title, status: "cancelled" as const };
+          return { lessonId, status: "cancelled" as const };
         }
         return null;
       }
@@ -67,7 +82,6 @@ export async function updateRegistrationsAction(
       if (existing && isCurrentlyActive) {
         return {
           lessonId,
-          title: lesson.title,
           status: existing.status as "registered" | "waitlisted",
         };
       }
@@ -96,7 +110,7 @@ export async function updateRegistrationsAction(
         });
       }
 
-      return { lessonId, title: lesson.title, status: status as "registered" | "waitlisted" };
+      return { lessonId, status: status as "registered" | "waitlisted" };
     });
 
     if (outcome) {

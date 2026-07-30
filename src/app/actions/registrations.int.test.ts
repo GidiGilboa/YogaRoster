@@ -6,10 +6,15 @@ import { createTestLesson, createTestStudent, createTestTeacher } from "@/test/f
 import type { RegisterActionState } from "./registrations";
 import type { IdentifyActionState } from "./identify";
 
-function registrationFormData(allLessonIds: string[], checkedLessonIds: string[]): FormData {
+function registrationFormData(
+  allLessonIds: string[],
+  checkedLessonIds: string[],
+  actingStudentId?: string
+): FormData {
   const fd = new FormData();
   for (const id of allLessonIds) fd.append("allLessonIds", id);
   for (const id of checkedLessonIds) fd.append("lessonIds", id);
+  if (actingStudentId) fd.set("actingStudentId", actingStudentId);
   return fd;
 }
 
@@ -244,6 +249,52 @@ describe("updateRegistrationsAction — multi-tenant isolation", () => {
   });
 });
 
+describe("updateRegistrationsAction — registering on behalf of a linked student", () => {
+  it("registers and deducts credit for the dependent, not the identified registrar", async () => {
+    const { teacher } = await createTestTeacher(ctx.db);
+    const registrar = await createTestStudent(ctx.db, teacher.id, { credits: 5 });
+    const dependent = await createTestStudent(ctx.db, teacher.id, { credits: 5 });
+    await ctx.db.studentLink.create({ data: { registrarId: registrar.id, dependentId: dependent.id } });
+    const lesson = await createTestLesson(ctx.db, teacher.id, { capacity: 10 });
+    await loginAsStudent(teacher.id, registrar.id);
+
+    const result = await registrations.updateRegistrationsAction(
+      teacher.id,
+      emptyRegisterState,
+      registrationFormData([lesson.id], [lesson.id], dependent.id)
+    );
+
+    expect(result.results?.[0].status).toBe("registered");
+    expect(result.remainingCredits).toBe(4);
+    const dependentReg = await ctx.db.registration.findUnique({
+      where: { studentId_lessonId: { studentId: dependent.id, lessonId: lesson.id } },
+    });
+    expect(dependentReg?.status).toBe("registered");
+    const untouchedRegistrar = await ctx.db.student.findUnique({ where: { id: registrar.id } });
+    expect(untouchedRegistrar?.credits).toBe(5);
+  });
+
+  it("rejects acting on behalf of a student with no link to the identified registrar", async () => {
+    const { teacher } = await createTestTeacher(ctx.db);
+    const registrar = await createTestStudent(ctx.db, teacher.id, { credits: 5 });
+    const stranger = await createTestStudent(ctx.db, teacher.id, { credits: 5 });
+    const lesson = await createTestLesson(ctx.db, teacher.id, { capacity: 10 });
+    await loginAsStudent(teacher.id, registrar.id);
+
+    const result = await registrations.updateRegistrationsAction(
+      teacher.id,
+      emptyRegisterState,
+      registrationFormData([lesson.id], [lesson.id], stranger.id)
+    );
+
+    expect(result.error).toBeTruthy();
+    const reg = await ctx.db.registration.findUnique({
+      where: { studentId_lessonId: { studentId: stranger.id, lessonId: lesson.id } },
+    });
+    expect(reg).toBeNull();
+  });
+});
+
 describe("teacherCancelRegistrationAction", () => {
   it("cancels a registration and refunds a deducted credit", async () => {
     const { teacher } = await createTestTeacher(ctx.db);
@@ -404,16 +455,27 @@ describe("identifyStudentAction", () => {
     expect(result.error).toBeTruthy();
   });
 
-  it("GAP (see qa-test-plan.md): does not validate phone number format, unlike the teacher-side student form", async () => {
+  it("rejects a malformed phone number (fixed — previously an undocumented gap)", async () => {
     const { teacher } = await createTestTeacher(ctx.db);
     const fd = identifyFormData({ name: "מישהי", phone: "not-a-real-phone" });
+
+    const result = await identify.identifyStudentAction(teacher.id, `/plan/${teacher.id}`, emptyIdentifyState, fd);
+
+    expect(result.error).toBeTruthy();
+    const count = await ctx.db.student.count({ where: { teacherId: teacher.id } });
+    expect(count).toBe(0);
+  });
+
+  it("normalizes a phone number with formatting characters before matching/storing it", async () => {
+    const { teacher } = await createTestTeacher(ctx.db);
+    const fd = identifyFormData({ name: "מישהי", phone: "050-111-2222" });
 
     await expect(
       identify.identifyStudentAction(teacher.id, `/plan/${teacher.id}`, emptyIdentifyState, fd)
     ).rejects.toBeInstanceOf(NextRedirectSignal);
 
     const created = await ctx.db.student.findUnique({
-      where: { teacherId_phone: { teacherId: teacher.id, phone: "not-a-real-phone" } },
+      where: { teacherId_phone: { teacherId: teacher.id, phone: "0501112222" } },
     });
     expect(created).not.toBeNull();
   });
@@ -431,6 +493,26 @@ describe("identifyStudentAction", () => {
 
     expect(caught).toBeInstanceOf(NextRedirectSignal);
     expect((caught as InstanceType<typeof NextRedirectSignal>).url).toBe(`/plan/${teacher.id}`);
+  });
+
+  it("blocks further identify attempts from the same IP once the threshold is exceeded", async () => {
+    const { teacher } = await createTestTeacher(ctx.db);
+
+    for (let i = 0; i < 10; i++) {
+      const fd = identifyFormData({ name: "מישהי", phone: `05012340${String(i).padStart(2, "0")}` });
+      await expect(
+        identify.identifyStudentAction(teacher.id, `/plan/${teacher.id}`, emptyIdentifyState, fd)
+      ).rejects.toBeInstanceOf(NextRedirectSignal);
+    }
+
+    const fd = identifyFormData({ name: "מישהי", phone: "0509990000" });
+    const result = await identify.identifyStudentAction(teacher.id, `/plan/${teacher.id}`, emptyIdentifyState, fd);
+
+    expect(result.error).toBeTruthy();
+    const created = await ctx.db.student.findUnique({
+      where: { teacherId_phone: { teacherId: teacher.id, phone: "0509990000" } },
+    });
+    expect(created).toBeNull();
   });
 });
 

@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { db } from "@/lib/db";
 import { getWeekRangeFromStartParam, formatWeekRangeLabel, formatWeekStartParam, shiftWeekStart } from "@/lib/week";
 import { getIdentifiedStudent } from "@/lib/studentAuth";
-import { RegistrationList, type PlanLesson } from "./registration-list";
+import { RegistrationList, type PlanLesson, type RegisterAsPerson } from "./registration-list";
 
 type PlanPageParams = { teacherId: string; week: string };
 
@@ -41,13 +41,32 @@ export async function generateMetadata({
   };
 }
 
-export default async function PublicPlanPage({ params }: { params: Promise<PlanPageParams> }) {
+export default async function PublicPlanPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<PlanPageParams>;
+  searchParams: Promise<{ as?: string }>;
+}) {
   const resolvedParams = await params;
   const resolved = await loadPlan(resolvedParams);
   if (!resolved) notFound();
 
   const { teacher, range } = resolved;
   const { teacherId, week } = resolvedParams;
+  const { as: requestedActingId } = await searchParams;
+
+  const backgroundStyle: React.CSSProperties | undefined = teacher.backgroundImageUrl
+    ? {
+        backgroundImage: `url(${teacher.backgroundImageUrl})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed",
+      }
+    : undefined;
+  const cardClassName = teacher.backgroundImageUrl
+    ? "w-full max-w-md rounded-lg bg-white/70 p-6 shadow-sm dark:bg-black/60"
+    : "w-full max-w-md";
 
   const publication = await db.weeklyPlanPublication.findUnique({
     where: { teacherId_weekStart: { teacherId, weekStart: range.start } },
@@ -55,8 +74,8 @@ export default async function PublicPlanPage({ params }: { params: Promise<PlanP
 
   if (!publication) {
     return (
-      <main className="flex flex-1 items-center justify-center bg-zinc-50 px-6 py-12 dark:bg-black">
-        <div className="w-full max-w-md text-center">
+      <main className="flex flex-1 items-center justify-center bg-zinc-50 px-6 py-12 dark:bg-black" style={backgroundStyle}>
+        <div className={`${cardClassName} text-center`}>
           <h1 className="mb-2 text-xl font-semibold">שיעורי יוגה עם {teacher.name}</h1>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">התוכנית לשבוע זה עדיין לא פורסמה.</p>
         </div>
@@ -64,10 +83,40 @@ export default async function PublicPlanPage({ params }: { params: Promise<PlanP
     );
   }
 
-  const student = await getIdentifiedStudent(teacherId);
-  if (!student) {
+  const identifiedStudent = await getIdentifiedStudent(teacherId);
+  if (!identifiedStudent) {
     redirect(`/plan/${teacherId}/${week}/identify?returnTo=${encodeURIComponent(`/plan/${teacherId}/${week}`)}`);
   }
+
+  const dependentLinks = await db.studentLink.findMany({
+    where: { registrarId: identifiedStudent.id },
+    include: { dependent: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const people: RegisterAsPerson[] = [
+    { id: identifiedStudent.id, name: `${identifiedStudent.firstName} (את)`, isActive: false },
+    ...dependentLinks.map((link) => ({
+      id: link.dependent.id,
+      name: link.dependent.firstName,
+      isActive: false,
+    })),
+  ];
+
+  const activeStudentId =
+    requestedActingId && people.some((person) => person.id === requestedActingId)
+      ? requestedActingId
+      : identifiedStudent.id;
+  for (const person of people) {
+    person.isActive = person.id === activeStudentId;
+  }
+
+  const activeStudent =
+    activeStudentId === identifiedStudent.id
+      ? identifiedStudent
+      : (dependentLinks.find((link) => link.dependent.id === activeStudentId)?.dependent ?? identifiedStudent);
+
+  const asParam = people.length > 1 ? `?as=${activeStudentId}` : "";
 
   const prevStart = shiftWeekStart(range.start, -1);
   const nextStart = shiftWeekStart(range.start, 1);
@@ -84,7 +133,7 @@ export default async function PublicPlanPage({ params }: { params: Promise<PlanP
       where: { teacherId_weekStart: { teacherId, weekStart: nextStart } },
     }),
     db.registration.findMany({
-      where: { studentId: student.id, status: { in: ["registered", "waitlisted"] } },
+      where: { studentId: activeStudentId, status: { in: ["registered", "waitlisted"] } },
     }),
   ]);
 
@@ -99,7 +148,6 @@ export default async function PublicPlanPage({ params }: { params: Promise<PlanP
   const registrationByLessonId = new Map(registrations.map((r) => [r.lessonId, r.status]));
   const planLessons: PlanLesson[] = lessons.map((lesson) => ({
     id: lesson.id,
-    title: lesson.title,
     startsAt: lesson.startsAt,
     durationMinutes: lesson.durationMinutes,
     capacity: lesson.capacity,
@@ -109,20 +157,39 @@ export default async function PublicPlanPage({ params }: { params: Promise<PlanP
   }));
 
   return (
-    <main className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-12 dark:bg-black">
-      <div className="w-full max-w-md">
+    <main className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-12 dark:bg-black" style={backgroundStyle}>
+      <div className={cardClassName}>
         <p className="mb-2 text-sm text-zinc-600 dark:text-zinc-400">
-          {student.firstName.trim() ? `היי, ${student.firstName}!` : "היי!"}
+          {identifiedStudent.firstName.trim() ? `היי, ${identifiedStudent.firstName}!` : "היי!"}
         </p>
         <h1 className="mb-1 text-xl font-semibold">שיעורי יוגה עם {teacher.name}</h1>
+
+        {people.length > 1 && (
+          <div className="mb-3 flex gap-2 overflow-x-auto">
+            {people.map((person) => (
+              <Link
+                key={person.id}
+                href={`/plan/${teacherId}/${week}?as=${person.id}`}
+                className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ${
+                  person.isActive
+                    ? "border-2 border-blue-600 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                    : "border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                }`}
+              >
+                {person.name}
+              </Link>
+            ))}
+          </div>
+        )}
+
         <p className="mb-4 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          יתרת שיעורים: {student.credits}
+          יתרת שיעורים: {activeStudent.credits}
         </p>
 
         <div className="mb-6 flex items-center justify-between">
           {prevPublished ? (
             <Link
-              href={`/plan/${teacherId}/${formatWeekStartParam(prevStart)}`}
+              href={`/plan/${teacherId}/${formatWeekStartParam(prevStart)}${asParam}`}
               aria-label="שבוע קודם"
               className="rounded-md border border-zinc-300 p-1.5 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
             >
@@ -136,7 +203,7 @@ export default async function PublicPlanPage({ params }: { params: Promise<PlanP
           <span className="text-sm font-medium">{formatWeekRangeLabel(range.start, range.end)}</span>
           {nextPublished ? (
             <Link
-              href={`/plan/${teacherId}/${formatWeekStartParam(nextStart)}`}
+              href={`/plan/${teacherId}/${formatWeekStartParam(nextStart)}${asParam}`}
               aria-label="שבוע הבא"
               className="rounded-md border border-zinc-300 p-1.5 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
             >
@@ -149,7 +216,7 @@ export default async function PublicPlanPage({ params }: { params: Promise<PlanP
           )}
         </div>
 
-        <RegistrationList teacherId={teacherId} lessons={planLessons} />
+        <RegistrationList teacherId={teacherId} lessons={planLessons} actingStudentId={activeStudentId} />
       </div>
     </main>
   );

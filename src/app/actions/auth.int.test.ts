@@ -105,6 +105,57 @@ describe("loginAction", () => {
     expect(result.error).toBeTruthy();
     expect(fakeCookies.get(SESSION_COOKIE_NAME)).toBeUndefined();
   });
+
+  it("rejects login for a disabled teacher even with the correct password", async () => {
+    const { teacher, password } = await createTestTeacher(ctx.db, {
+      email: "disabled-teacher@example.com",
+      password: "correct-password",
+    });
+    await ctx.db.teacher.update({ where: { id: teacher.id }, data: { isDisabled: true } });
+
+    const fd = formData({ email: teacher.email, password });
+    const result = await auth.loginAction(emptyState, fd);
+
+    expect(result.error).toBeTruthy();
+    expect(fakeCookies.get(SESSION_COOKIE_NAME)).toBeUndefined();
+  });
+});
+
+describe("signupAction — rate limiting", () => {
+  it("blocks further signups from the same IP once the threshold is exceeded", async () => {
+    for (let i = 0; i < 5; i++) {
+      const fd = formData({ name: "מורה", email: `rate-limit-${i}@example.com`, password: "password123" });
+      await expect(auth.signupAction(emptyState, fd)).rejects.toBeInstanceOf(NextRedirectSignal);
+    }
+
+    const fd = formData({ name: "מורה", email: "rate-limit-blocked@example.com", password: "password123" });
+    const result = await auth.signupAction(emptyState, fd);
+
+    expect(result.error).toBeTruthy();
+    const teacher = await ctx.db.teacher.findUnique({ where: { email: "rate-limit-blocked@example.com" } });
+    expect(teacher).toBeNull();
+  });
+});
+
+describe("loginAction — rate limiting", () => {
+  it("blocks further attempts for the same email even with the correct password, once the threshold is exceeded", async () => {
+    const { teacher, password } = await createTestTeacher(ctx.db, {
+      email: "rate-limit-login@example.com",
+      password: "correct-password",
+    });
+
+    for (let i = 0; i < 5; i++) {
+      const fd = formData({ email: teacher.email, password: "wrong-password" });
+      const result = await auth.loginAction(emptyState, fd);
+      expect(result.error).toBeTruthy();
+    }
+
+    const fd = formData({ email: teacher.email, password });
+    const result = await auth.loginAction(emptyState, fd);
+
+    expect(result.error).toBeTruthy();
+    expect(fakeCookies.get(SESSION_COOKIE_NAME)).toBeUndefined();
+  });
 });
 
 describe("logoutAction", () => {

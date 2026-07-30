@@ -13,14 +13,20 @@ datasource db {
 }
 
 model Teacher {
-  id           String    @id @default(cuid())
-  name         String
-  email        String    @unique
-  passwordHash String
-  createdAt    DateTime  @default(now())
-  students     Student[]
-  lessons      Lesson[]
-  publications WeeklyPlanPublication[]
+  id                     String   @id @default(cuid())
+  name                   String
+  email                  String   @unique
+  passwordHash           String
+  phone                  String?
+  appName                String   @default("Yoga Roster")
+  defaultLessonCapacity  Int      @default(10)
+  defaultLessonDuration  Int      @default(60)
+  backgroundImageUrl     String?
+  isDisabled             Boolean  @default(false)
+  createdAt              DateTime @default(now())
+  students               Student[]
+  lessons                Lesson[]
+  publications           WeeklyPlanPublication[]
 }
 
 model Student {
@@ -35,16 +41,30 @@ model Student {
   createdAt DateTime @default(now())
 
   registrations Registration[]
+  registrarLinks StudentLink[] @relation("RegistrarLinks")
+  dependentLinks StudentLink[] @relation("DependentLinks")
 
   @@unique([teacherId, phone])
   @@index([teacherId])
+}
+
+model StudentLink {
+  id          String   @id @default(cuid())
+  registrarId String
+  registrar   Student  @relation("RegistrarLinks", fields: [registrarId], references: [id])
+  dependentId String
+  dependent   Student  @relation("DependentLinks", fields: [dependentId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([registrarId, dependentId])
+  @@index([registrarId])
+  @@index([dependentId])
 }
 
 model Lesson {
   id              String   @id @default(cuid())
   teacherId       String
   teacher         Teacher  @relation(fields: [teacherId], references: [id])
-  title           String
   startsAt        DateTime
   durationMinutes Int
   capacity        Int

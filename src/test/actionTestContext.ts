@@ -1,6 +1,7 @@
 import { afterAll, afterEach, beforeAll } from "vitest";
 import { createTestDb, type TestDb } from "./testDb";
 import { fakeCookies } from "./nextMocks";
+import { resetRateLimitsForTests } from "@/lib/rateLimit";
 import type { PrismaClient } from "@/generated/prisma/client";
 
 export type ActionTestContext = {
@@ -29,6 +30,7 @@ export function setupActionTestDb(): ActionTestContext {
 
   afterEach(() => {
     fakeCookies.clear();
+    resetRateLimitsForTests();
   });
 
   afterAll(async () => {

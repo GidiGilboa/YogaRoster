@@ -17,7 +17,9 @@ export function verifyPassword(password: string, hash: string): Promise<boolean>
 export const getCurrentTeacher = cache(async () => {
   const teacherId = await getSessionTeacherId();
   if (!teacherId) return null;
-  return db.teacher.findUnique({ where: { id: teacherId } });
+  const teacher = await db.teacher.findUnique({ where: { id: teacherId } });
+  if (!teacher || teacher.isDisabled) return null;
+  return teacher;
 });
 
 export async function requireTeacher() {
