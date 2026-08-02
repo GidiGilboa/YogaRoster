@@ -16,7 +16,12 @@ export default defineConfig({
   // Next dev compiles routes on demand; under full local parallelism many
   // tests hit an uncompiled route at once and 30s isn't always enough
   // headroom purely for that first-compile latency (not app slowness).
-  timeout: 45_000,
+  // Widened further after adding WhatsApp support: /dashboard renders
+  // settings-form.tsx, which statically references a server action backed
+  // by Baileys' large dependency graph, making that route's first compile
+  // noticeably heavier - and nearly every spec lands on /dashboard first
+  // via signupTeacher().
+  timeout: 90_000,
   use: {
     baseURL: BASE_URL,
     trace: "on-first-retry",
@@ -49,6 +54,9 @@ export default defineConfig({
       // sequences get silently stripped as bogus variable references.
       ADMIN_USERNAME: "e2e-admin",
       ADMIN_PASSWORD_HASH: "\\$2b\\$12\\$4ETnqZfdo2hbnA/AUkJsAO/stfoEobtTm.5kDkOcoKyBmkXYjMdrC",
+      // No e2e spec exercises real WhatsApp connectivity - skip loading
+      // Baileys' dependency graph at boot (see src/instrumentation.ts).
+      DISABLE_WHATSAPP_RESTORE: "1",
     },
   },
 });
