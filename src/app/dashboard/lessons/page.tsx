@@ -58,14 +58,17 @@ export default async function LessonsPage({
   }));
 
   return (
-    <main className="flex flex-1 flex-col items-center px-6 py-12">
+    <main className="flex flex-1 flex-col items-center px-6 pt-4 pb-12">
       <div className="w-full max-w-md">
-        <Link
-          href="/dashboard"
-          className="mb-4 inline-block text-sm font-medium text-zinc-600 hover:underline dark:text-zinc-400"
-        >
-          ← חזרה
-        </Link>
+        <div className="relative flex h-9 items-center">
+          <Link
+            href="/dashboard"
+            className="relative z-10 text-sm font-medium text-zinc-600 hover:underline dark:text-zinc-400"
+          >
+            ← חזרה
+          </Link>
+          <h1 className="absolute inset-x-0 text-center text-xl font-semibold">שיעורי השבוע</h1>
+        </div>
 
         <LessonsToolbar
           teacherId={teacher.id}

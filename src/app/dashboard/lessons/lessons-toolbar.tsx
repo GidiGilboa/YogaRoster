@@ -69,10 +69,8 @@ export function LessonsToolbar({
 
   return (
     <>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">שיעורי השבוע</h1>
-        <div className="flex items-center gap-2">
-          <button
+      <div className="mb-6 flex items-center justify-end gap-2">
+        <button
             type="button"
             onClick={handleCopyWeek}
             disabled={isCopyWeekPending}
@@ -91,10 +89,9 @@ export function LessonsToolbar({
             disabled={isPublishPending || !hasLessonsThisWeek}
             className="flex h-9 items-center gap-1.5 rounded-md bg-blue-600 px-4 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {publishSucceeded ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            פרסם לקהילה
-          </button>
-        </div>
+          {publishSucceeded ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          פרסם לקהילה
+        </button>
       </div>
 
       {manualUrl && (

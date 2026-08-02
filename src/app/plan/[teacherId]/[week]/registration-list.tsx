@@ -108,66 +108,81 @@ export function RegistrationList({
   return (
     <form key={actingStudentId} action={formAction} className="flex flex-col gap-4">
       {actingStudentId && <input type="hidden" name="actingStudentId" value={actingStudentId} />}
-      <ul className="flex flex-col divide-y divide-zinc-200 border-t border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+      <ul className="flex flex-col divide-y-2 divide-zinc-200 border-t-2 border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
         {lessons.length === 0 && (
           <li className="py-3 text-sm text-zinc-500 dark:text-zinc-400">אין שיעורים מתוכננים לשבוע זה.</li>
         )}
         {lessons.map((lesson) => (
           <li key={lesson.id}>
-            <label className="flex min-h-[52px] cursor-pointer items-center gap-3 py-2 active:bg-blue-50 dark:active:bg-blue-950/40">
-              <input
-                type="checkbox"
-                name="lessonIds"
-                value={lesson.id}
-                defaultChecked={lesson.registrationStatus !== null}
-                aria-label={`בחירת שיעור ${lessonDateFormatter.format(lesson.startsAt)}`}
-                className="relative h-6 w-6 shrink-0 appearance-none rounded-full border-2 border-zinc-300 after:absolute after:inset-0 after:flex after:items-center after:justify-center after:text-xs after:font-bold after:text-white after:content-[''] checked:border-blue-600 checked:bg-blue-600 checked:after:content-['✓'] dark:border-zinc-600"
-              />
-              <input type="hidden" name="allLessonIds" value={lesson.id} />
+            {/* Inline padding (not a py-[5px] utility class) - same as the status
+                column width below, arbitrary-value utilities weren't resolving to
+                an actual computed style in this project's Tailwind build. */}
+            <label
+              className="flex cursor-pointer flex-col gap-1 active:bg-blue-50 dark:active:bg-blue-950/40"
+              style={{ paddingTop: "5px", paddingBottom: "5px", minHeight: "52px" }}
+            >
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  name="lessonIds"
+                  value={lesson.id}
+                  defaultChecked={lesson.registrationStatus !== null}
+                  aria-label={`בחירת שיעור ${lessonDateFormatter.format(lesson.startsAt)}`}
+                  className="relative h-6 w-6 shrink-0 appearance-none rounded-full border-2 border-zinc-300 after:absolute after:inset-0 after:flex after:items-center after:justify-center after:text-xs after:font-bold after:text-white after:content-[''] checked:border-blue-600 checked:bg-blue-600 checked:after:content-['✓'] dark:border-zinc-600"
+                />
+                <input type="hidden" name="allLessonIds" value={lesson.id} />
 
-              <span className="w-9 shrink-0 text-sm leading-tight">
-                <span className="block font-semibold text-zinc-900 dark:text-zinc-100">
-                  {dayLetter(lesson.startsAt)}
+                <span className="w-9 shrink-0 leading-tight">
+                  <span className="block text-base font-bold text-zinc-900 dark:text-zinc-100">
+                    {dayLetter(lesson.startsAt)}
+                  </span>
+                  <span className="block text-[11px] text-zinc-500 dark:text-zinc-400">
+                    {dateDigitsFormatter.format(lesson.startsAt)}
+                  </span>
                 </span>
-                <span className="block text-zinc-500 dark:text-zinc-400">
-                  {dateDigitsFormatter.format(lesson.startsAt)}
-                </span>
-              </span>
 
-              <span className="min-w-0 shrink-0">
-                <span className="block text-xl font-bold tabular-nums text-zinc-900 dark:text-zinc-100">
+                <span className="shrink-0 text-xl font-bold tabular-nums text-zinc-900 dark:text-zinc-100">
                   {timeFormatter.format(lesson.startsAt)}
                 </span>
-                {lesson.comment && (
-                  <span className="block max-w-[150px] truncate text-xs text-zinc-500 dark:text-zinc-400">
-                    {lesson.comment}
-                  </span>
-                )}
-              </span>
 
-              {/* Fixed-width column with physical text-align:left, not margin-left:auto
-                  on the status itself - an auto margin only pushes based on that
-                  element's own (variable) width, so "פנוי" and a padded "רשומה" pill
-                  land at different left edges instead of forming a real column.
-                  Inline width (not a w-24 utility class) since it wasn't resolving
-                  to an actual computed width in this project's Tailwind build. */}
-              <span className="ml-auto shrink-0 text-left" style={{ width: "6rem" }}>
-                <span
-                  className={`whitespace-nowrap text-xs font-semibold ${
-                    lesson.registrationStatus === "registered"
-                      ? "rounded-full bg-green-100 px-2.5 py-1 text-green-700 dark:bg-green-950 dark:text-green-300"
+                {/* Fixed-width column with physical text-align:left, not margin-left:auto
+                    on the status itself - an auto margin only pushes based on that
+                    element's own (variable) width, so "פנוי" and a padded "רשומה" pill
+                    land at different left edges instead of forming a real column.
+                    Inline width (not a w-24 utility class) since it wasn't resolving
+                    to an actual computed width in this project's Tailwind build. */}
+                <span className="ml-auto shrink-0 text-left" style={{ width: "6rem" }}>
+                  <span
+                    className={`whitespace-nowrap text-xs font-semibold ${
+                      lesson.registrationStatus === "registered"
+                        ? "rounded-full bg-green-100 px-2.5 py-1 text-green-700 dark:bg-green-950 dark:text-green-300"
+                        : lesson.registrationStatus === "waitlisted"
+                          ? "rounded-full bg-amber-100 px-2.5 py-1 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                          : "text-zinc-500 dark:text-zinc-400"
+                    }`}
+                  >
+                    {lesson.registrationStatus === "registered"
+                      ? "רשומה"
                       : lesson.registrationStatus === "waitlisted"
-                        ? "rounded-full bg-amber-100 px-2.5 py-1 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                        : "text-zinc-500 dark:text-zinc-400"
-                  }`}
-                >
-                  {lesson.registrationStatus === "registered"
-                    ? "רשומה"
-                    : lesson.registrationStatus === "waitlisted"
-                      ? "ברשימת המתנה"
-                      : availabilityLabel(lesson)}
+                        ? "ברשימת המתנה"
+                        : availabilityLabel(lesson)}
+                  </span>
                 </span>
-              </span>
+              </div>
+
+              {/* Comment gets its own full-width line below the row instead of
+                  sharing the cramped time column - on this layout's actual (narrow)
+                  content width there isn't room for a comment next to the status
+                  pill without either one pushing the other out. Indented to roughly
+                  align under the time digits (checkbox + gap + date column + gap). */}
+              {lesson.comment && (
+                <span
+                  className="block break-words text-xs text-zinc-500 dark:text-zinc-400"
+                  style={{ paddingRight: "5.25rem" }}
+                >
+                  {lesson.comment}
+                </span>
+              )}
             </label>
           </li>
         ))}
