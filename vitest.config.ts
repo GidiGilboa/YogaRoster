@@ -19,7 +19,13 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html", "lcov"],
       include: ["src/app/actions/**", "src/lib/**"],
-      exclude: ["src/lib/db.ts", "src/generated/**"],
+      // Same reasoning as src/lib/db.ts: infrastructure that talks to a real
+      // external service and can't be meaningfully unit tested. The actual
+      // Baileys socket/QR/reconnect logic here requires a real network
+      // connection and a real WhatsApp account - see qa-test-plan.md's
+      // WhatsApp mocking note. Only the action layer that calls into it
+      // (src/app/actions/whatsapp.ts) is held to the coverage bar.
+      exclude: ["src/lib/db.ts", "src/lib/whatsapp.ts", "src/generated/**"],
       thresholds: {
         lines: 80,
         functions: 80,

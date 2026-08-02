@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import "@/test/nextMocks";
 import { NextRedirectSignal } from "@/test/nextMocks";
 import { setupActionTestDb, fakeCookies } from "@/test/actionTestContext";
@@ -14,6 +14,13 @@ const sendWhatsappMessageMock = vi.fn();
 vi.mock("@/lib/whatsapp", () => ({
   sendWhatsappMessage: (...args: unknown[]) => sendWhatsappMessageMock(...args),
 }));
+
+// A module-level vi.fn() keeps its call history across every it() in this
+// file unless cleared - without this, an earlier test's calls leak into a
+// later toHaveBeenCalledTimes() assertion.
+afterEach(() => {
+  sendWhatsappMessageMock.mockClear();
+});
 
 function registrationFormData(
   allLessonIds: string[],
