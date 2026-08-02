@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireTeacher } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getWeekRange } from "@/lib/week";
+import { israeliWallTimeToUtc } from "@/lib/timezone";
 
 export type LessonActionState = {
   error?: string;
@@ -22,7 +23,12 @@ function parseLessonForm(formData: FormData): ParsedLessonInput | { error: strin
   const capacityRaw = String(formData.get("capacity") ?? "");
   const comment = String(formData.get("comment") ?? "").trim();
 
-  const startsAt = startsAtRaw ? new Date(startsAtRaw) : null;
+  // The form sends a naive "YYYY-MM-DDTHH:mm" string with no offset (the
+  // teacher's local Israel time), which is ambiguous and must be interpreted
+  // as Israel time explicitly rather than the server process's own timezone.
+  // A string that already carries an explicit offset/Z (e.g. from tests or
+  // other callers) is unambiguous and can be parsed directly.
+  const startsAt = startsAtRaw ? israeliWallTimeToUtc(startsAtRaw) ?? new Date(startsAtRaw) : null;
   if (!startsAt || Number.isNaN(startsAt.getTime())) {
     return { error: "יש לבחור תאריך ושעה תקינים." };
   }

@@ -170,6 +170,50 @@ describe("adminUpdateTeacherAction", () => {
   });
 });
 
+describe("adminSetTeacherPasswordAction", () => {
+  it("requires an active admin session", async () => {
+    const { teacher } = await createTestTeacher(ctx.db);
+    const fd = formData({ password: "a-new-password-123" });
+
+    await expect(admin.adminSetTeacherPasswordAction(teacher.id, {}, fd)).rejects.toBeInstanceOf(
+      NextRedirectSignal
+    );
+  });
+
+  it("sets a new password the teacher can log in with", async () => {
+    await loginAsAdmin();
+    const { teacher } = await createTestTeacher(ctx.db, { password: "original-password-123" });
+
+    const fd = formData({ password: "brand-new-password-456" });
+    const result = await admin.adminSetTeacherPasswordAction(teacher.id, {}, fd);
+
+    expect(result.error).toBeUndefined();
+    const updated = await ctx.db.teacher.findUnique({ where: { id: teacher.id } });
+    expect(updated?.passwordHash).not.toBe(teacher.passwordHash);
+    expect(await libAuth.verifyPassword("brand-new-password-456", updated!.passwordHash)).toBe(true);
+    expect(await libAuth.verifyPassword("original-password-123", updated!.passwordHash)).toBe(false);
+  });
+
+  it("rejects a password shorter than the minimum length", async () => {
+    await loginAsAdmin();
+    const { teacher } = await createTestTeacher(ctx.db);
+
+    const fd = formData({ password: "short1" });
+    const result = await admin.adminSetTeacherPasswordAction(teacher.id, {}, fd);
+
+    expect(result.error).toBeTruthy();
+  });
+
+  it("returns an error for a nonexistent teacher", async () => {
+    await loginAsAdmin();
+    const fd = formData({ password: "a-new-password-123" });
+
+    const result = await admin.adminSetTeacherPasswordAction("nonexistent-id", {}, fd);
+
+    expect(result.error).toBeTruthy();
+  });
+});
+
 describe("adminSetTeacherDisabledAction", () => {
   it("requires an active admin session", async () => {
     const { teacher } = await createTestTeacher(ctx.db);

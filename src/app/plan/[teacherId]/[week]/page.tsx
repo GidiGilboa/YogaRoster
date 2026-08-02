@@ -157,15 +157,15 @@ export default async function PublicPlanPage({
   }));
 
   return (
-    <main className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-12 dark:bg-black" style={backgroundStyle}>
+    <main className="flex flex-1 flex-col items-center bg-zinc-50 px-6 py-8 dark:bg-black" style={backgroundStyle}>
       <div className={cardClassName}>
-        <p className="mb-2 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mb-1 text-sm text-zinc-600 dark:text-zinc-400">
           {identifiedStudent.firstName.trim() ? `היי, ${identifiedStudent.firstName}!` : "היי!"}
         </p>
         <h1 className="mb-1 text-xl font-semibold">שיעורי יוגה עם {teacher.name}</h1>
 
         {people.length > 1 && (
-          <div className="mb-3 flex gap-2 overflow-x-auto">
+          <div className="mb-2 flex gap-2 overflow-x-auto">
             {people.map((person) => (
               <Link
                 key={person.id}
@@ -182,11 +182,11 @@ export default async function PublicPlanPage({
           </div>
         )}
 
-        <p className="mb-4 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        <p className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
           יתרת שיעורים: {activeStudent.credits}
         </p>
 
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between">
           {prevPublished ? (
             <Link
               href={`/plan/${teacherId}/${formatWeekStartParam(prevStart)}${asParam}`}

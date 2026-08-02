@@ -23,6 +23,9 @@ model Teacher {
   defaultLessonDuration  Int      @default(60)
   backgroundImageUrl     String?
   isDisabled             Boolean  @default(false)
+  whatsappPhone          String?
+  whatsappConnected      Boolean  @default(false)
+  whatsappConnectedAt    DateTime?
   createdAt              DateTime @default(now())
   students               Student[]
   lessons                Lesson[]

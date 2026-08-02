@@ -4,7 +4,12 @@ import { ChevronLeft } from "lucide-react";
 import { formatIsraeliPhone } from "@/lib/phone";
 import { AdminTeacherFormModal, type AdminTeacherData } from "./teacher-form";
 
-const createdAtFormatter = new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "numeric", year: "numeric" });
+const createdAtFormatter = new Intl.DateTimeFormat("he-IL", {
+  day: "numeric",
+  month: "numeric",
+  year: "numeric",
+  timeZone: "Asia/Jerusalem",
+});
 
 export function TeacherRow({ teacher }: { teacher: AdminTeacherData }) {
   return (

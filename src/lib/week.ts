@@ -31,7 +31,7 @@ export function shiftWeekStart(start: Date, weeks: number): Date {
   return shifted;
 }
 
-const monthFormatter = new Intl.DateTimeFormat("he-IL", { month: "long" });
+const monthFormatter = new Intl.DateTimeFormat("he-IL", { month: "long", timeZone: "Asia/Jerusalem" });
 
 export function formatWeekRangeLabel(start: Date, end: Date): string {
   const lastDay = new Date(end);

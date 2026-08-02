@@ -4,6 +4,14 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getIdentifiedStudent } from "@/lib/studentAuth";
 import { requireTeacher } from "@/lib/auth";
+import { sendWhatsappMessage } from "@/lib/whatsapp";
+
+const lessonTimeFormatter = new Intl.DateTimeFormat("he-IL", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: "Asia/Jerusalem",
+});
 
 export type RegistrationOutcome = {
   lessonId: string;
@@ -219,4 +227,50 @@ export async function manualRegisterStudentAction(
 
   revalidatePath("/dashboard/lessons");
   return {};
+}
+
+export type SendReminderState = {
+  error?: string;
+  sentCount?: number;
+  failedNames?: string[];
+};
+
+export async function sendLessonReminderAction(lessonId: string): Promise<SendReminderState> {
+  const teacher = await requireTeacher();
+
+  const lesson = await db.lesson.findUnique({ where: { id: lessonId } });
+  if (!lesson || lesson.teacherId !== teacher.id) {
+    return { error: "השיעור לא נמצא." };
+  }
+
+  if (!teacher.whatsappConnected) {
+    return { error: "וואטסאפ לא מחובר. יש להתחבר בהגדרות." };
+  }
+
+  const registrations = await db.registration.findMany({
+    where: { lessonId, status: "registered" },
+    include: { student: true },
+  });
+
+  if (registrations.length === 0) {
+    return { error: "אין תלמידות רשומות לשיעור זה." };
+  }
+
+  const message = `ניפגש היום ב-${lessonTimeFormatter.format(lesson.startsAt)}`;
+  const failedNames: string[] = [];
+  let sentCount = 0;
+
+  for (const registration of registrations) {
+    try {
+      await sendWhatsappMessage(teacher.id, registration.student.phone, message);
+      sentCount += 1;
+    } catch (error) {
+      console.error(`Failed to send WhatsApp reminder to student ${registration.student.id}`, error);
+      failedNames.push(`${registration.student.firstName} ${registration.student.lastName}`);
+    }
+    // Small delay between sends as a precaution against WhatsApp's automation detection.
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+
+  return { sentCount, failedNames: failedNames.length > 0 ? failedNames : undefined };
 }

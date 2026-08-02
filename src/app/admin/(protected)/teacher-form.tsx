@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import {
   adminUpdateTeacherAction,
   adminSetTeacherDisabledAction,
+  adminSetTeacherPasswordAction,
   type AdminTeacherActionState,
 } from "@/app/actions/admin";
 import { formatIsraeliPhone } from "@/lib/phone";
@@ -106,6 +107,97 @@ function DisableToggle({ teacher }: { teacher: AdminTeacherData }) {
     >
       השבתת חשבון
     </button>
+  );
+}
+
+function SetPasswordSection({ teacher }: { teacher: AdminTeacherData }) {
+  const [isPending, startTransition] = useTransition();
+  const [mode, setMode] = useState<"closed" | "open" | "done">("closed");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData();
+    fd.set("password", password);
+    startTransition(async () => {
+      const result = await adminSetTeacherPasswordAction(teacher.id, {}, fd);
+      if (result.error) {
+        setError(result.error);
+      } else {
+        setPassword("");
+        setMode("done");
+      }
+    });
+  }
+
+  if (mode === "closed") {
+    return (
+      <button
+        type="button"
+        onClick={() => setMode("open")}
+        className="w-full rounded-md border border-zinc-300 px-4 py-2 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+      >
+        קביעת סיסמה חדשה
+      </button>
+    );
+  }
+
+  if (mode === "done") {
+    return (
+      <div className="flex items-center justify-between rounded-md border border-green-300 px-4 py-2 text-sm font-medium text-green-700 dark:border-green-900 dark:text-green-400">
+        <span>הסיסמה עודכנה</span>
+        <button type="button" onClick={() => setMode("closed")} className="text-xs underline">
+          סגירה
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+      <label htmlFor={`new-password-${teacher.id}`} className="text-sm font-medium">
+        סיסמה חדשה
+      </label>
+      <input
+        id={`new-password-${teacher.id}`}
+        type="password"
+        required
+        minLength={8}
+        autoComplete="new-password"
+        placeholder="לפחות 8 תווים"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+      />
+      {error && (
+        <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={isPending}
+          className="flex-1 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {isPending ? "שומרת…" : "שמירת סיסמה"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMode("closed");
+            setPassword("");
+            setError(null);
+          }}
+          disabled={isPending}
+          className="flex-1 rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        >
+          ביטול
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -245,6 +337,10 @@ export function AdminTeacherFormModal({
                 </button>
               </div>
             </form>
+
+            <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+              <SetPasswordSection teacher={teacher} />
+            </div>
 
             <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
               <DisableToggle teacher={teacher} />

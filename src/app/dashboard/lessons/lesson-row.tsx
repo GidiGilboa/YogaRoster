@@ -3,11 +3,12 @@
 import { ChevronLeft } from "lucide-react";
 import { LessonFormModal, type LessonData } from "./lesson-form";
 
-const dayFormatter = new Intl.DateTimeFormat("he-IL", { weekday: "long" });
+const dayFormatter = new Intl.DateTimeFormat("he-IL", { weekday: "long", timeZone: "Asia/Jerusalem" });
 const timeFormatter = new Intl.DateTimeFormat("he-IL", {
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,
+  timeZone: "Asia/Jerusalem",
 });
 
 export type StudentOption = {

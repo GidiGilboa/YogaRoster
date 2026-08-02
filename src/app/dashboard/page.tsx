@@ -9,7 +9,21 @@ export default async function DashboardHomePage() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-12">
       <div className="flex w-full max-w-2xl items-center justify-between">
-        <h1 className="text-xl font-semibold">היי, {teacher.name}</h1>
+        <div className="flex flex-col gap-1.5">
+          <h1 className="text-xl font-semibold">היי, {teacher.name}</h1>
+          <span
+            className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+              teacher.whatsappConnected
+                ? "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300"
+                : "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400"
+            }`}
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${teacher.whatsappConnected ? "bg-green-500" : "bg-zinc-400"}`}
+            />
+            {teacher.whatsappConnected ? "וואטסאפ מחובר" : "וואטסאפ לא מחובר"}
+          </span>
+        </div>
         <SettingsButton
           settings={{
             name: teacher.name,
@@ -19,6 +33,8 @@ export default async function DashboardHomePage() {
             defaultLessonCapacity: teacher.defaultLessonCapacity,
             defaultLessonDuration: teacher.defaultLessonDuration,
             backgroundImageUrl: teacher.backgroundImageUrl,
+            whatsappConnected: teacher.whatsappConnected,
+            whatsappPhone: teacher.whatsappPhone,
           }}
         />
       </div>

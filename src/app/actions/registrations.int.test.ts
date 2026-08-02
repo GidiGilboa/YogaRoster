@@ -1,10 +1,19 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import "@/test/nextMocks";
 import { NextRedirectSignal } from "@/test/nextMocks";
 import { setupActionTestDb, fakeCookies } from "@/test/actionTestContext";
 import { createTestLesson, createTestStudent, createTestTeacher } from "@/test/factories";
 import type { RegisterActionState } from "./registrations";
 import type { IdentifyActionState } from "./identify";
+
+// sendLessonReminderAction (tested below) calls into the real Baileys
+// session layer - none of that belongs in a test, so it's mocked file-wide.
+// Every other test in this file never touches it, so this has no effect on
+// them beyond skipping the real module load.
+const sendWhatsappMessageMock = vi.fn();
+vi.mock("@/lib/whatsapp", () => ({
+  sendWhatsappMessage: (...args: unknown[]) => sendWhatsappMessageMock(...args),
+}));
 
 function registrationFormData(
   allLessonIds: string[],
@@ -557,5 +566,162 @@ describe("publishWeekAction", () => {
       where: { teacherId: teacher.id, weekStart: range.start },
     });
     expect(count).toBe(1);
+  });
+});
+
+describe("sendLessonReminderAction", () => {
+  it("requires an active teacher session", async () => {
+    const { teacher } = await createTestTeacher(ctx.db);
+    const lesson = await createTestLesson(ctx.db, teacher.id);
+
+    await expect(registrations.sendLessonReminderAction(lesson.id)).rejects.toBeInstanceOf(NextRedirectSignal);
+  });
+
+  it("returns an error for a nonexistent lesson", async () => {
+    const { teacher } = await createTestTeacher(ctx.db);
+    await loginAsTeacher(teacher.id);
+
+    const result = await registrations.sendLessonReminderAction("nonexistent-id");
+
+    expect(result.error).toBeTruthy();
+  });
+
+  it("does not allow sending a reminder for another teacher's lesson", async () => {
+    const { teacher: owner } = await createTestTeacher(ctx.db);
+    const { teacher: intruder } = await createTestTeacher(ctx.db);
+    const lesson = await createTestLesson(ctx.db, owner.id);
+    await loginAsTeacher(intruder.id);
+
+    const result = await registrations.sendLessonReminderAction(lesson.id);
+
+    expect(result.error).toBeTruthy();
+    expect(sendWhatsappMessageMock).not.toHaveBeenCalled();
+  });
+
+  it("returns an error when whatsapp isn't connected, without attempting any sends", async () => {
+    const { teacher } = await createTestTeacher(ctx.db);
+    const lesson = await createTestLesson(ctx.db, teacher.id);
+    const student = await createTestStudent(ctx.db, teacher.id);
+    await ctx.db.registration.create({
+      data: { studentId: student.id, lessonId: lesson.id, status: "registered", creditDeducted: true },
+    });
+    await loginAsTeacher(teacher.id);
+
+    const result = await registrations.sendLessonReminderAction(lesson.id);
+
+    expect(result.error).toBeTruthy();
+    expect(sendWhatsappMessageMock).not.toHaveBeenCalled();
+  });
+
+  it("returns an error when no students are registered", async () => {
+    const { teacher } = await createTestTeacher(ctx.db);
+    await ctx.db.teacher.update({ where: { id: teacher.id }, data: { whatsappConnected: true } });
+    const lesson = await createTestLesson(ctx.db, teacher.id);
+    await loginAsTeacher(teacher.id);
+
+    const result = await registrations.sendLessonReminderAction(lesson.id);
+
+    expect(result.error).toBeTruthy();
+    expect(sendWhatsappMessageMock).not.toHaveBeenCalled();
+  });
+
+  it("sends the meeting-time message to every registered student and reports the count", async () => {
+    const { teacher } = await createTestTeacher(ctx.db);
+    await ctx.db.teacher.update({ where: { id: teacher.id }, data: { whatsappConnected: true } });
+    // Winter (IST, UTC+2): 14:00 UTC -> 16:00 Israel local time.
+    const lesson = await createTestLesson(ctx.db, teacher.id, { startsAt: new Date("2027-01-15T14:00:00.000Z") });
+    const studentA = await createTestStudent(ctx.db, teacher.id, { phone: "0501110001" });
+    const studentB = await createTestStudent(ctx.db, teacher.id, { phone: "0501110002" });
+    await ctx.db.registration.create({
+      data: { studentId: studentA.id, lessonId: lesson.id, status: "registered", creditDeducted: true },
+    });
+    await ctx.db.registration.create({
+      data: { studentId: studentB.id, lessonId: lesson.id, status: "registered", creditDeducted: true },
+    });
+    sendWhatsappMessageMock.mockResolvedValue(undefined);
+    await loginAsTeacher(teacher.id);
+
+    // The action sleeps briefly between sends as an anti-detection
+    // precaution - fake timers avoid actually waiting on that in tests.
+    vi.useFakeTimers();
+    let result;
+    try {
+      const resultPromise = registrations.sendLessonReminderAction(lesson.id);
+      await vi.runAllTimersAsync();
+      result = await resultPromise;
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(result.error).toBeUndefined();
+    expect(result.sentCount).toBe(2);
+    expect(result.failedNames).toBeUndefined();
+    expect(sendWhatsappMessageMock).toHaveBeenCalledWith(teacher.id, "0501110001", "ניפגש היום ב-16:00");
+    expect(sendWhatsappMessageMock).toHaveBeenCalledWith(teacher.id, "0501110002", "ניפגש היום ב-16:00");
+  });
+
+  it("excludes waitlisted and cancelled registrations from the send", async () => {
+    const { teacher } = await createTestTeacher(ctx.db);
+    await ctx.db.teacher.update({ where: { id: teacher.id }, data: { whatsappConnected: true } });
+    const lesson = await createTestLesson(ctx.db, teacher.id);
+    const registered = await createTestStudent(ctx.db, teacher.id);
+    const waitlisted = await createTestStudent(ctx.db, teacher.id);
+    const cancelled = await createTestStudent(ctx.db, teacher.id);
+    await ctx.db.registration.create({
+      data: { studentId: registered.id, lessonId: lesson.id, status: "registered", creditDeducted: true },
+    });
+    await ctx.db.registration.create({
+      data: { studentId: waitlisted.id, lessonId: lesson.id, status: "waitlisted", creditDeducted: false },
+    });
+    await ctx.db.registration.create({
+      data: { studentId: cancelled.id, lessonId: lesson.id, status: "cancelled", creditDeducted: false },
+    });
+    sendWhatsappMessageMock.mockResolvedValue(undefined);
+    await loginAsTeacher(teacher.id);
+
+    vi.useFakeTimers();
+    let result;
+    try {
+      const resultPromise = registrations.sendLessonReminderAction(lesson.id);
+      await vi.runAllTimersAsync();
+      result = await resultPromise;
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(result.sentCount).toBe(1);
+    expect(sendWhatsappMessageMock).toHaveBeenCalledTimes(1);
+    expect(sendWhatsappMessageMock).toHaveBeenCalledWith(teacher.id, registered.phone, expect.any(String));
+  });
+
+  it("reports a per-student failure by name without failing the whole batch", async () => {
+    const { teacher } = await createTestTeacher(ctx.db);
+    await ctx.db.teacher.update({ where: { id: teacher.id }, data: { whatsappConnected: true } });
+    const lesson = await createTestLesson(ctx.db, teacher.id);
+    const okStudent = await createTestStudent(ctx.db, teacher.id, { firstName: "תקינה", lastName: "בדיקה" });
+    const failingStudent = await createTestStudent(ctx.db, teacher.id, { firstName: "נכשלת", lastName: "בדיקה" });
+    await ctx.db.registration.create({
+      data: { studentId: okStudent.id, lessonId: lesson.id, status: "registered", creditDeducted: true },
+    });
+    await ctx.db.registration.create({
+      data: { studentId: failingStudent.id, lessonId: lesson.id, status: "registered", creditDeducted: true },
+    });
+    sendWhatsappMessageMock.mockImplementation(async (_teacherId: string, phone: string) => {
+      if (phone === failingStudent.phone) throw new Error("send failed");
+    });
+    await loginAsTeacher(teacher.id);
+
+    vi.useFakeTimers();
+    let result;
+    try {
+      const resultPromise = registrations.sendLessonReminderAction(lesson.id);
+      await vi.runAllTimersAsync();
+      result = await resultPromise;
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(result.sentCount).toBe(1);
+    expect(result.failedNames).toEqual(["נכשלת בדיקה"]);
   });
 });

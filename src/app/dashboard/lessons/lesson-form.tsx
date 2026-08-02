@@ -12,6 +12,7 @@ import {
 import {
   teacherCancelRegistrationAction,
   manualRegisterStudentAction,
+  sendLessonReminderAction,
 } from "@/app/actions/registrations";
 import { formatIsraeliPhone } from "@/lib/phone";
 import type { RosterEntry, StudentOption } from "./lesson-row";
@@ -33,11 +34,13 @@ const lessonDetailFormatter = new Intl.DateTimeFormat("he-IL", {
   weekday: "long",
   day: "numeric",
   month: "numeric",
+  timeZone: "Asia/Jerusalem",
 });
 const timeFormatter = new Intl.DateTimeFormat("he-IL", {
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,
+  timeZone: "Asia/Jerusalem",
 });
 
 function getWeekdaysFor(referenceDate: Date): Date[] {
@@ -280,6 +283,82 @@ function AddStudentToLesson({
   );
 }
 
+function SendReminderButton({ lessonId, registeredCount }: { lessonId: string; registeredCount: number }) {
+  const [isPending, startTransition] = useTransition();
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [result, setResult] = useState<{ sentCount: number; failedNames?: string[] } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function handleSend() {
+    setError(null);
+    startTransition(async () => {
+      const response = await sendLessonReminderAction(lessonId);
+      if (response.error) {
+        setError(response.error);
+      } else {
+        setResult({ sentCount: response.sentCount ?? 0, failedNames: response.failedNames });
+        setIsConfirming(false);
+      }
+    });
+  }
+
+  if (registeredCount === 0) return null;
+
+  if (result) {
+    return (
+      <div className="rounded-md border border-zinc-200 px-3 py-2 text-sm dark:border-zinc-800">
+        <p>
+          נשלחה תזכורת ל-{result.sentCount} מתוך {registeredCount} תלמידות.
+        </p>
+        {result.failedNames && result.failedNames.length > 0 && (
+          <p className="mt-1 text-red-600 dark:text-red-400">נכשל עבור: {result.failedNames.join(", ")}</p>
+        )}
+      </div>
+    );
+  }
+
+  if (isConfirming) {
+    return (
+      <div className="flex flex-col gap-2 rounded-md border border-zinc-300 p-3 dark:border-zinc-700">
+        <p className="text-sm font-medium">לשלוח תזכורת ל-{registeredCount} תלמידות?</p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={isPending}
+            className="flex-1 rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {isPending ? "שולחת…" : "כן, שליחה"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsConfirming(false)}
+            disabled={isPending}
+            className="flex-1 rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          >
+            ביטול
+          </button>
+        </div>
+        {error && (
+          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setIsConfirming(true)}
+      className="w-full rounded-md border border-zinc-300 px-4 py-2 font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+    >
+      שליחת תזכורת
+    </button>
+  );
+}
+
 function RosterView({
   lesson,
   roster,
@@ -348,6 +427,7 @@ function RosterView({
 
       <div className="mt-4 flex flex-col gap-2">
         <AddStudentToLesson lessonId={lesson.id} eligibleStudents={eligibleStudents} />
+        <SendReminderButton lessonId={lesson.id} registeredCount={registered.length} />
         <button
           type="button"
           onClick={onClose}

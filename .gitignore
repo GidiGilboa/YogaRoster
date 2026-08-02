@@ -47,6 +47,9 @@ next-env.d.ts
 *.db
 *.db-journal
 
+# WhatsApp session credentials (Baileys auth state) - one folder per teacher
+/.whatsapp-sessions
+
 # user-uploaded content
 /public/uploads
 

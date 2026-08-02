@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import Image from "next/image";
 import { Settings } from "lucide-react";
 import { updateSettingsAction, type SettingsActionState } from "@/app/actions/settings";
+import { getWhatsappQrStatusAction } from "@/app/actions/whatsapp";
 import { formatIsraeliPhone } from "@/lib/phone";
 
 const initialState: SettingsActionState = {};
@@ -17,7 +18,109 @@ export type TeacherSettings = {
   defaultLessonCapacity: number;
   defaultLessonDuration: number;
   backgroundImageUrl: string | null;
+  whatsappConnected: boolean;
+  whatsappPhone: string | null;
 };
+
+function WhatsappConnectSection({
+  initialConnected,
+  initialPhone,
+}: {
+  initialConnected: boolean;
+  initialPhone: string | null;
+}) {
+  const [connected, setConnected] = useState(initialConnected);
+  const [phone, setPhone] = useState(initialPhone);
+  const [connecting, setConnecting] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function applyStatus(status: Awaited<ReturnType<typeof getWhatsappQrStatusAction>>) {
+    if (status.error) {
+      setError(status.error);
+      setConnecting(false);
+      return;
+    }
+    if (status.connected) {
+      setConnected(true);
+      setPhone(status.phone);
+      setConnecting(false);
+      setQrDataUrl(null);
+    } else if (status.qrDataUrl) {
+      setQrDataUrl(status.qrDataUrl);
+    }
+  }
+
+  useEffect(() => {
+    if (!connecting) return;
+    const poll = setInterval(async () => {
+      applyStatus(await getWhatsappQrStatusAction());
+    }, 3000);
+    return () => clearInterval(poll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connecting]);
+
+  function handleConnect() {
+    setError(null);
+    setConnecting(true);
+    startTransition(async () => {
+      applyStatus(await getWhatsappQrStatusAction());
+    });
+  }
+
+  if (connected) {
+    return (
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-medium">וואטסאפ</span>
+        <div className="flex items-center gap-2 rounded-md border border-green-300 px-3 py-2 text-sm text-green-700 dark:border-green-900 dark:text-green-400">
+          <span className="h-2 w-2 shrink-0 rounded-full bg-green-500" />
+          <span>מחוברת{phone ? ` · ${formatIsraeliPhone(phone)}` : ""}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-sm font-medium">וואטסאפ</span>
+
+      {!connecting && (
+        <button
+          type="button"
+          onClick={handleConnect}
+          disabled={isPending}
+          className="w-fit rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {isPending ? "מתחברת…" : "התחברות"}
+        </button>
+      )}
+
+      {connecting && (
+        <div className="flex flex-col items-center gap-2 rounded-md border border-zinc-300 p-3 dark:border-zinc-700">
+          {qrDataUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- dynamically generated data: URI, not a static asset
+            <img src={qrDataUrl} alt="קוד QR לחיבור וואטסאפ" className="h-48 w-48" />
+          ) : (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">טוענת קוד…</p>
+          )}
+          <ol className="list-decimal pr-4 text-xs text-zinc-600 dark:text-zinc-400">
+            <li>בטלפון שלך פתחי וואטסאפ</li>
+            <li>הגדרות ← מכשירים מקושרים ← קישור מכשיר</li>
+            <li>סרקי את הקוד עם המצלמה</li>
+          </ol>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">הקוד מתעדכן אוטומטית</p>
+        </div>
+      )}
+
+      {error && (
+        <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -195,6 +298,13 @@ export function SettingsButton({ settings }: { settings: TeacherSettings }) {
                 </button>
               </div>
             </form>
+
+            <div className="mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+              <WhatsappConnectSection
+                initialConnected={settings.whatsappConnected}
+                initialPhone={settings.whatsappPhone}
+              />
+            </div>
           </div>
         </div>
       )}

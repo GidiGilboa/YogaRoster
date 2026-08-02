@@ -1,6 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Baileys does conditional `import('jimp')`/`import('sharp')` for optional
+  // media-thumbnail support (wrapped in a runtime .catch(), so it's fine if
+  // neither is installed) - Turbopack's bundler otherwise tries to statically
+  // resolve those specifiers at compile time and fails hard on the missing
+  // one. Marking the package external skips bundling it entirely; it's
+  // require()'d directly via Node's own resolution at runtime instead.
+  serverExternalPackages: ["@whiskeysockets/baileys"],
   experimental: {
     serverActions: {
       // GitHub Codespaces' port-forwarding tunnel sends the request's Origin

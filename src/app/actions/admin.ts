@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { createAdminSession, destroyAdminSession, requireAdmin, verifyAdminCredentials } from "@/lib/adminAuth";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { normalizePhone, isValidIsraeliMobile } from "@/lib/phone";
+import { hashPassword } from "@/lib/auth";
 
 export type AdminAuthActionState = {
   error?: string;
@@ -42,6 +43,7 @@ export type AdminTeacherActionState = {
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 8;
 
 export async function adminUpdateTeacherAction(
   teacherId: string,
@@ -105,6 +107,29 @@ export async function adminUpdateTeacherAction(
   });
 
   revalidatePath("/admin");
+  return {};
+}
+
+export async function adminSetTeacherPasswordAction(
+  teacherId: string,
+  _prevState: AdminTeacherActionState,
+  formData: FormData
+): Promise<AdminTeacherActionState> {
+  await requireAdmin();
+
+  const existing = await db.teacher.findUnique({ where: { id: teacherId } });
+  if (!existing) {
+    return { error: "המורה לא נמצאה." };
+  }
+
+  const password = String(formData.get("password") ?? "");
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return { error: `הסיסמה חייבת לכלול לפחות ${MIN_PASSWORD_LENGTH} תווים.` };
+  }
+
+  const passwordHash = await hashPassword(password);
+  await db.teacher.update({ where: { id: teacherId }, data: { passwordHash } });
+
   return {};
 }
 

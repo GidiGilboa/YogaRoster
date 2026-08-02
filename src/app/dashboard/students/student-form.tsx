@@ -20,6 +20,7 @@ const lessonDateFormatter = new Intl.DateTimeFormat("he-IL", {
   month: "numeric",
   hour: "2-digit",
   minute: "2-digit",
+  timeZone: "Asia/Jerusalem",
 });
 
 export type StudentData = {
