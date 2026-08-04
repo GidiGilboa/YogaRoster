@@ -4,6 +4,7 @@ import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import {
   adminUpdateTeacherAction,
+  adminImpersonateTeacherAction,
   adminSetTeacherDisabledAction,
   adminSetTeacherPasswordAction,
   type AdminTeacherActionState,
@@ -201,6 +202,39 @@ function SetPasswordSection({ teacher }: { teacher: AdminTeacherData }) {
   );
 }
 
+function ImpersonateButton({ teacher }: { teacher: AdminTeacherData }) {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function handleClick() {
+    setError(null);
+    startTransition(async () => {
+      const result = await adminImpersonateTeacherAction(teacher.id);
+      if (result?.error) {
+        setError(result.error);
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={isPending || teacher.isDisabled}
+        className="w-full rounded-md border border-blue-300 px-4 py-2 font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-50 dark:border-blue-900 dark:text-blue-400 dark:hover:bg-blue-950"
+      >
+        {isPending ? "נכנסת…" : "כניסה לאפליקציה כמורה"}
+      </button>
+      {error && (
+        <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function AdminTeacherFormModal({
   teacher,
   trigger,
@@ -231,6 +265,10 @@ export function AdminTeacherFormModal({
                   מושבת
                 </span>
               )}
+            </div>
+
+            <div className="mb-4">
+              <ImpersonateButton teacher={teacher} />
             </div>
 
             <form action={formAction} className="flex flex-col gap-4">

@@ -177,6 +177,24 @@ function CancelRegistrationButton({ registrationId }: { registrationId: string }
   );
 }
 
+// Same visual treatment as the "יתרה" badge on the students list (student-row.tsx),
+// just swapping blue for red when there's nothing left to spend.
+function CreditBalanceBadge({ credits }: { credits: number }) {
+  const isLow = credits <= 0;
+  return (
+    <div
+      className={`flex shrink-0 flex-col items-center rounded-md px-3 py-1.5 ${
+        isLow
+          ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+          : "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+      }`}
+    >
+      <span className="text-xs font-medium">יתרה</span>
+      <span className="text-sm font-semibold">{credits}</span>
+    </div>
+  );
+}
+
 function RosterStudentRow({ entry, position }: { entry: RosterEntry; position?: number }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800">
@@ -200,7 +218,10 @@ function RosterStudentRow({ entry, position }: { entry: RosterEntry; position?: 
           </div>
         </div>
       </div>
-      <CancelRegistrationButton registrationId={entry.registrationId} />
+      <div className="flex items-center gap-2">
+        <CreditBalanceBadge credits={entry.student.credits} />
+        <CancelRegistrationButton registrationId={entry.registrationId} />
+      </div>
     </div>
   );
 }

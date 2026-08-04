@@ -44,6 +44,7 @@ export default async function LessonsPage({
         firstName: registration.student.firstName,
         lastName: registration.student.lastName,
         phone: registration.student.phone,
+        credits: registration.student.credits,
       },
     };
     const list = rosterByLessonId.get(registration.lessonId) ?? [];

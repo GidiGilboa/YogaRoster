@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import Link from "next/link";
 import { loginAction, type AuthActionState } from "@/app/actions/auth";
 
 const initialState: AuthActionState = {};
@@ -49,6 +50,12 @@ export function LoginForm() {
           autoComplete="current-password"
           className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
         />
+        <Link
+          href="/forgot-password"
+          className="mt-1 w-fit text-xs text-zinc-600 underline hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+        >
+          שכחתי סיסמה
+        </Link>
       </div>
       {state.error && (
         <p className="text-sm text-red-600 dark:text-red-400" role="alert">

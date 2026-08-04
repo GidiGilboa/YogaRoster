@@ -25,6 +25,7 @@ export type RosterEntry = {
     firstName: string;
     lastName: string;
     phone: string;
+    credits: number;
   };
 };
 

@@ -15,6 +15,7 @@ test(
     await expect(page.getByText("שיעור בוקר לשכפול")).not.toBeVisible();
 
     await page.getByRole("button", { name: "העתק משבוע קודם" }).click();
+    await page.getByRole("button", { name: "כן, העתקה" }).click();
 
     await expect(page.getByText("שיעור בוקר לשכפול")).toBeVisible();
     await expect(page.getByText(/8 נרשמו/)).toBeVisible();

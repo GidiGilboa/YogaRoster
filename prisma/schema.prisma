@@ -26,6 +26,8 @@ model Teacher {
   whatsappPhone          String?
   whatsappConnected      Boolean  @default(false)
   whatsappConnectedAt    DateTime?
+  passwordResetCodeHash       String?
+  passwordResetCodeExpiresAt  DateTime?
   createdAt              DateTime @default(now())
   students               Student[]
   lessons                Lesson[]

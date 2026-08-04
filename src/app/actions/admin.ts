@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { createAdminSession, destroyAdminSession, requireAdmin, verifyAdminCredentials } from "@/lib/adminAuth";
+import { createSession } from "@/lib/session";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { normalizePhone, isValidIsraeliMobile } from "@/lib/phone";
 import { hashPassword } from "@/lib/auth";
@@ -131,6 +132,25 @@ export async function adminSetTeacherPasswordAction(
   await db.teacher.update({ where: { id: teacherId }, data: { passwordHash } });
 
   return {};
+}
+
+// Logs the admin into this teacher's own app - creates a real teacher
+// session (same yr_session cookie every teacher login sets) without
+// touching the admin's own yr_admin_session cookie, so returning to /admin
+// afterward doesn't require re-authenticating.
+export async function adminImpersonateTeacherAction(teacherId: string): Promise<AdminTeacherActionState> {
+  await requireAdmin();
+
+  const teacher = await db.teacher.findUnique({ where: { id: teacherId } });
+  if (!teacher) {
+    return { error: "המורה לא נמצאה." };
+  }
+  if (teacher.isDisabled) {
+    return { error: "לא ניתן להיכנס לחשבון מושבת." };
+  }
+
+  await createSession(teacher.id);
+  redirect("/dashboard");
 }
 
 export async function adminSetTeacherDisabledAction(
