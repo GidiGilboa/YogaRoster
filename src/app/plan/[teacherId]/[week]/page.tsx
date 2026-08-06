@@ -25,10 +25,12 @@ export async function generateMetadata({
 }: {
   params: Promise<PlanPageParams>;
 }): Promise<Metadata> {
-  const resolved = await loadPlan(await params);
+  const resolvedParams = await params;
+  const resolved = await loadPlan(resolvedParams);
   if (!resolved) return {};
 
   const { teacher } = resolved;
+  const { teacherId, week } = resolvedParams;
   const pageTitle = `שיעורי יוגה השבוע — ${teacher.name}`;
 
   return {
@@ -38,6 +40,13 @@ export async function generateMetadata({
       // shows (WhatsApp, iMessage, etc.) - falls back to the generic title
       // when she hasn't set one.
       title: teacher.shareMessage || pageTitle,
+      // Open Graph's spec (ogp.me) lists og:title/og:type/og:image/og:url as
+      // the 4 required properties - Facebook's Sharing Debugger flagged
+      // og:url and og:type as missing, which can make crawlers (WhatsApp
+      // shares Meta's scraping infra) refuse to render a full card at all,
+      // not just cache a stale one.
+      url: `/plan/${teacherId}/${week}`,
+      type: "website",
       // A single space, not "": leaving this unset (or "") doesn't suppress
       // og:description - Next.js treats both as falsy and fills it in from
       // the effective top-level `description` (this page's own, or
