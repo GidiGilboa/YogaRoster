@@ -68,10 +68,6 @@ function toTimeValue(date: Date): string {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 }
 
-function getInitials(firstName: string, lastName: string): string {
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.trim() || "?";
-}
-
 function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
   return (
@@ -199,15 +195,6 @@ function RosterStudentRow({ entry, position }: { entry: RosterEntry; position?: 
   return (
     <div className="flex items-center justify-between gap-3 rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-800">
       <div className="flex items-center gap-2">
-        <div
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-            entry.status === "registered"
-              ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-              : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-          }`}
-        >
-          {getInitials(entry.student.firstName, entry.student.lastName)}
-        </div>
         {position !== undefined && <span className="text-sm text-zinc-500 dark:text-zinc-400">{position}</span>}
         <div>
           <div className="text-sm font-medium">

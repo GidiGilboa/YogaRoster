@@ -33,6 +33,8 @@ export default async function DashboardHomePage() {
             defaultLessonCapacity: teacher.defaultLessonCapacity,
             defaultLessonDuration: teacher.defaultLessonDuration,
             backgroundImageUrl: teacher.backgroundImageUrl,
+            shareImageUrl: teacher.shareImageUrl,
+            shareMessage: teacher.shareMessage,
             whatsappConnected: teacher.whatsappConnected,
             whatsappPhone: teacher.whatsappPhone,
           }}

@@ -28,6 +28,8 @@ model Teacher {
   whatsappConnectedAt    DateTime?
   passwordResetCodeHash       String?
   passwordResetCodeExpiresAt  DateTime?
+  shareImageUrl               String?
+  shareMessage                String?
   createdAt              DateTime @default(now())
   students               Student[]
   lessons                Lesson[]

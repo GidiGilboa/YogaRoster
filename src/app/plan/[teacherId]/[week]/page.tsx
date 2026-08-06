@@ -28,15 +28,24 @@ export async function generateMetadata({
   const resolved = await loadPlan(await params);
   if (!resolved) return {};
 
-  const { teacher, range } = resolved;
-  const label = formatWeekRangeLabel(range.start, range.end);
+  const { teacher } = resolved;
+  const pageTitle = `שיעורי יוגה השבוע — ${teacher.name}`;
 
   return {
-    title: `שיעורי יוגה השבוע — ${teacher.name}`,
-    description: label,
+    title: pageTitle,
     openGraph: {
-      title: `שיעורי יוגה השבוע — ${teacher.name}`,
-      description: label,
+      // The teacher's own message becomes the bold headline a link preview
+      // shows (WhatsApp, iMessage, etc.) - falls back to the generic title
+      // when she hasn't set one.
+      title: teacher.shareMessage || pageTitle,
+      // A single space, not "": leaving this unset (or "") doesn't suppress
+      // og:description - Next.js treats both as falsy and fills it in from
+      // the effective top-level `description` (this page's own, or
+      // inherited from root layout's if this page doesn't set one either),
+      // defeating the single-line card this page is deliberately built
+      // around. A non-empty value bypasses that fallback and renders as
+      // nothing visible in the actual link preview.
+      description: " ",
     },
   };
 }

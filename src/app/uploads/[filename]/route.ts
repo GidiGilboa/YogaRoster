@@ -16,9 +16,10 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 export async function GET(_request: Request, { params }: { params: Promise<{ filename: string }> }) {
   const { filename } = await params;
 
-  // saveBackgroundImage only ever writes "teacher-<id>.<ext>" - reject anything
-  // else so a crafted filename segment can't be used for path traversal.
-  const match = /^teacher-[a-zA-Z0-9]+\.(jpg|png|webp|gif)$/.exec(filename);
+  // saveUploadedImage only ever writes "teacher-<id>.<ext>" (background photo)
+  // or "share-<id>.<ext>" (WhatsApp-share photo) - reject anything else so a
+  // crafted filename segment can't be used for path traversal.
+  const match = /^(?:teacher|share)-[a-zA-Z0-9]+\.(jpg|png|webp|gif)$/.exec(filename);
   if (!match) {
     return new Response(null, { status: 404 });
   }

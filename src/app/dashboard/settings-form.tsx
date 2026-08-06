@@ -18,6 +18,8 @@ export type TeacherSettings = {
   defaultLessonCapacity: number;
   defaultLessonDuration: number;
   backgroundImageUrl: string | null;
+  shareImageUrl: string | null;
+  shareMessage: string | null;
   whatsappConnected: boolean;
   whatsappPhone: string | null;
 };
@@ -138,12 +140,14 @@ function SubmitButton() {
 export function SettingsButton({ settings }: { settings: TeacherSettings }) {
   const [isOpen, setIsOpen] = useState(false);
   const [removeImage, setRemoveImage] = useState(false);
+  const [removeShareImage, setRemoveShareImage] = useState(false);
 
   const [state, formAction] = useActionState(async (prevState: SettingsActionState, formData: FormData) => {
     const result = await updateSettingsAction(prevState, formData);
     if (!result.error) {
       setIsOpen(false);
       setRemoveImage(false);
+      setRemoveShareImage(false);
     }
     return result;
   }, initialState);
@@ -277,6 +281,54 @@ export function SettingsButton({ settings }: { settings: TeacherSettings }) {
                   type="file"
                   accept="image/png,image/jpeg,image/webp,image/gif"
                   onChange={() => setRemoveImage(false)}
+                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
+                <span className="text-sm font-medium">תמונה לשיתוף בוואטסאפ</span>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  התמונה שתופיע כשמפרסמים קישור לשבוע בוואטסאפ. מומלץ יחס רוחב-גובה של כ-1200×630.
+                </p>
+                {settings.shareImageUrl && !removeShareImage && (
+                  <div className="flex items-center gap-3">
+                    <Image
+                      src={settings.shareImageUrl}
+                      alt=""
+                      width={64}
+                      height={34}
+                      unoptimized
+                      className="h-[34px] w-16 rounded-md object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setRemoveShareImage(true)}
+                      className="text-sm font-medium text-red-600 hover:underline dark:text-red-400"
+                    >
+                      הסרת תמונה
+                    </button>
+                  </div>
+                )}
+                {removeShareImage && <input type="hidden" name="removeShareImage" value="on" />}
+                <input
+                  name="shareImage"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={() => setRemoveShareImage(false)}
+                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label htmlFor="shareMessage" className="text-sm font-medium">
+                  הודעת ברירת מחדל לשיתוף
+                </label>
+                <textarea
+                  id="shareMessage"
+                  name="shareMessage"
+                  rows={2}
+                  placeholder="לדוגמה: שיעורים יתקיימו במינימום 8 משתתפות. בבקשה!"
+                  defaultValue={settings.shareMessage ?? ""}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
                 />
               </div>

@@ -20,7 +20,14 @@ const IMAGE_EXTENSION_BY_MIME: Record<string, string> = {
   "image/gif": "gif",
 };
 
-async function saveBackgroundImage(teacherId: string, file: File): Promise<string | { error: string }> {
+// `prefix` keeps the background photo and the WhatsApp-share photo as
+// separate files (different aspect ratios, different purposes) even though
+// they go through the same upload/validation logic.
+async function saveUploadedImage(
+  teacherId: string,
+  file: File,
+  prefix: "teacher" | "share"
+): Promise<string | { error: string }> {
   if (file.size > MAX_IMAGE_BYTES) {
     return { error: "התמונה גדולה מדי (מקסימום 5MB)." };
   }
@@ -31,7 +38,7 @@ async function saveBackgroundImage(teacherId: string, file: File): Promise<strin
 
   const uploadsDir = path.join(process.cwd(), "public", "uploads");
   await mkdir(uploadsDir, { recursive: true });
-  const filename = `teacher-${teacherId}.${extension}`;
+  const filename = `${prefix}-${teacherId}.${extension}`;
   const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(path.join(uploadsDir, filename), buffer);
 
@@ -52,6 +59,9 @@ export async function updateSettingsAction(
   const durationRaw = String(formData.get("defaultLessonDuration") ?? "");
   const backgroundImage = formData.get("backgroundImage");
   const removeBackgroundImage = formData.get("removeBackgroundImage") === "on";
+  const shareImage = formData.get("shareImage");
+  const removeShareImage = formData.get("removeShareImage") === "on";
+  const shareMessage = String(formData.get("shareMessage") ?? "").trim();
 
   if (!name) {
     return { error: "יש להזין שם." };
@@ -85,11 +95,20 @@ export async function updateSettingsAction(
 
   let backgroundImageUrl: string | undefined;
   if (backgroundImage instanceof File && backgroundImage.size > 0) {
-    const result = await saveBackgroundImage(teacher.id, backgroundImage);
+    const result = await saveUploadedImage(teacher.id, backgroundImage, "teacher");
     if (typeof result === "object") {
       return result;
     }
     backgroundImageUrl = result;
+  }
+
+  let shareImageUrl: string | undefined;
+  if (shareImage instanceof File && shareImage.size > 0) {
+    const result = await saveUploadedImage(teacher.id, shareImage, "share");
+    if (typeof result === "object") {
+      return result;
+    }
+    shareImageUrl = result;
   }
 
   await db.teacher.update({
@@ -101,8 +120,11 @@ export async function updateSettingsAction(
       appName,
       defaultLessonCapacity: capacity,
       defaultLessonDuration: duration,
+      shareMessage: shareMessage || null,
       ...(removeBackgroundImage ? { backgroundImageUrl: null } : {}),
       ...(backgroundImageUrl ? { backgroundImageUrl } : {}),
+      ...(removeShareImage ? { shareImageUrl: null } : {}),
+      ...(shareImageUrl ? { shareImageUrl } : {}),
     },
   });
 
