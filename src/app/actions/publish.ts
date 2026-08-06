@@ -34,10 +34,24 @@ export async function publishWeekAction(weekStartParam: string): Promise<Publish
   // instead of when WhatsApp fetches the link a moment after she shares
   // it and gives up waiting. Not awaited - publishing shouldn't wait on
   // this, and a failure here shouldn't fail the publish itself.
+  //
+  // Fetches the plan page first rather than guessing the image URL
+  // directly: Next appends a hash query string to the og:image URL
+  // (changes on every deploy) that isn't just `/opengraph-image` with no
+  // query - hitting that bare path warms a cache entry nobody actually
+  // requests, leaving the real one (with the hash) just as cold as before.
   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
-  fetch(`${appUrl}/plan/${teacher.id}/${weekStartParam}/opengraph-image`).catch((error) => {
-    console.error(`Failed to pre-warm share image for teacher ${teacher.id}, week ${weekStartParam}`, error);
-  });
+  const planUrl = `${appUrl}/plan/${teacher.id}/${weekStartParam}`;
+  fetch(planUrl, { headers: { "User-Agent": "facebookexternalhit/1.1" } })
+    .then((res) => res.text())
+    .then((html) => {
+      const match = /property="og:image" content="([^"]+)"/.exec(html);
+      if (!match) throw new Error("og:image tag not found in plan page response");
+      return fetch(match[1]);
+    })
+    .catch((error) => {
+      console.error(`Failed to pre-warm share image for teacher ${teacher.id}, week ${weekStartParam}`, error);
+    });
 
   return {};
 }
