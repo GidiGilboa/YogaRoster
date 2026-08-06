@@ -29,5 +29,15 @@ export async function publishWeekAction(weekStartParam: string): Promise<Publish
     update: {},
   });
 
+  // Fire-and-forget: warms the cache added in opengraph-image.tsx so the
+  // slow first render (image composition, ~7s on this box) happens now
+  // instead of when WhatsApp fetches the link a moment after she shares
+  // it and gives up waiting. Not awaited - publishing shouldn't wait on
+  // this, and a failure here shouldn't fail the publish itself.
+  const appUrl = process.env.APP_URL ?? "http://localhost:3000";
+  fetch(`${appUrl}/plan/${teacher.id}/${weekStartParam}/opengraph-image`).catch((error) => {
+    console.error(`Failed to pre-warm share image for teacher ${teacher.id}, week ${weekStartParam}`, error);
+  });
+
   return {};
 }
