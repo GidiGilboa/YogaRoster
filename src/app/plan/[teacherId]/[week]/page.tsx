@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -8,6 +9,19 @@ import { getIdentifiedStudent } from "@/lib/studentAuth";
 import { RegistrationList, type PlanLesson, type RegisterAsPerson } from "./registration-list";
 
 type PlanPageParams = { teacherId: string; week: string };
+
+// Link-preview crawlers never carry the student-identify cookie, so without
+// this they'd hit the same redirect to /identify a real first-time visitor
+// does - and since crawlers evaluate the page they land on (following
+// redirects) rather than the originally-requested URL, they'd read
+// /identify's generic metadata instead of this page's teacher-specific
+// title/image, no matter how correct this page's own metadata is.
+function isSocialPreviewCrawler(userAgent: string | null): boolean {
+  if (!userAgent) return false;
+  return /facebookexternalhit|WhatsApp|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Pinterest|Google-InspectionTool/i.test(
+    userAgent
+  );
+}
 
 async function loadPlan(params: PlanPageParams) {
   const { teacherId, week } = params;
@@ -103,6 +117,23 @@ export default async function PublicPlanPage({
 
   const identifiedStudent = await getIdentifiedStudent(teacherId);
   if (!identifiedStudent) {
+    const userAgent = (await headers()).get("user-agent");
+    if (isSocialPreviewCrawler(userAgent)) {
+      // Stay on this exact URL so the crawler reads this page's own
+      // generateMetadata (title/image) instead of following a redirect to
+      // /identify and reading its generic fallback metadata. Content here
+      // is irrelevant - crawlers only read <head>, never render the body.
+      return (
+        <main
+          className="flex flex-1 items-center justify-center bg-zinc-50 px-6 py-12 dark:bg-black"
+          style={backgroundStyle}
+        >
+          <div className={`${cardClassName} text-center`}>
+            <h1 className="text-xl font-semibold">שיעורי יוגה עם {teacher.name}</h1>
+          </div>
+        </main>
+      );
+    }
     redirect(`/plan/${teacherId}/${week}/identify?returnTo=${encodeURIComponent(`/plan/${teacherId}/${week}`)}`);
   }
 
