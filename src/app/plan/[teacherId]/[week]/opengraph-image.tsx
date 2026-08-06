@@ -44,6 +44,16 @@ function reverseHebrew(text: string): string {
 export const runtime = "nodejs";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+// Without this, every request re-reads the teacher's photo off disk and
+// re-renders it from scratch (over a second on this box) - fine for an
+// occasional crawler hit, but WhatsApp generates its preview as the sender
+// is still typing the message, on a much tighter budget, and its own
+// crawler was observed fetching this exact URL twice within under a
+// second. A slow first render there means WhatsApp gives up on the image
+// and sends the message text-only, permanently, regardless of how fast
+// later requests are. Caching the rendered output makes repeat requests
+// for the same week near-instant.
+export const revalidate = 3600;
 
 export default async function Image({
   params,
