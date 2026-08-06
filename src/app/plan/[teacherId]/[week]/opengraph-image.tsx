@@ -32,10 +32,12 @@ async function loadImageDataUrl(shareImageUrl: string): Promise<string | null> {
 // order and doesn't apply the Unicode bidi algorithm the way a real
 // browser does - `direction: "rtl"` has no effect on character order, only
 // on block alignment. Reversing a pure-Hebrew string here is what actually
-// makes it render correctly; don't use this on strings that mix in Latin
-// text or digits (e.g. the date label), since those need to stay in their
-// own left-to-right order even inside an RTL layout.
+// makes it render correctly. Only reverses strings that actually contain
+// Hebrew - `appName` defaults to the English "Yoga Roster" until a teacher
+// customizes it, and reversing plain English/Latin text mirrors it into
+// nonsense instead of leaving it correctly readable.
 function reverseHebrew(text: string): string {
+  if (!/[֐-׿]/.test(text)) return text;
   return [...text].reverse().join("");
 }
 
