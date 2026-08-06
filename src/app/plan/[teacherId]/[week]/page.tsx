@@ -69,6 +69,14 @@ export async function generateMetadata({
       // around. A non-empty value bypasses that fallback and renders as
       // nothing visible in the actual link preview.
       description: " ",
+      // Set explicitly here rather than via an opengraph-image.tsx file
+      // convention: file-based metadata always wins over generateMetadata
+      // (see Next's metadata docs), so that route can't be used as a mere
+      // fallback alongside an explicit override - one mechanism, chosen
+      // per teacher, avoids the two ever conflicting.
+      images: teacher.shareImageUrl
+        ? [{ url: teacher.shareImageUrl, type: "image/jpeg" }]
+        : [{ url: "/share-fallback.png", type: "image/png", width: 1200, height: 630 }],
     },
   };
 }

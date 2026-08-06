@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 // Without this, Next falls back to inferring the image host itself rather
 // than the incoming request's - in production that resolved to the app's
 // own localhost:3000 bind address, so link-preview crawlers (WhatsApp,
-// iMessage, etc.) couldn't fetch it and silently showed a plain text/URL
-// preview instead of the generated opengraph-image.
+// iMessage, etc.) couldn't resolve the relative og:image URL and silently
+// showed a plain text/URL preview instead.
 export const metadata: Metadata = {
   title: "Yoga Roster",
   description: "ניהול שיעורי יוגה ורישום תלמידים",

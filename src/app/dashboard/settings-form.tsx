@@ -288,7 +288,8 @@ export function SettingsButton({ settings }: { settings: TeacherSettings }) {
               <div className="flex flex-col gap-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
                 <span className="text-sm font-medium">תמונה לשיתוף בוואטסאפ</span>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  התמונה שתופיע כשמפרסמים קישור לשבוע בוואטסאפ. מומלץ יחס רוחב-גובה של כ-1200×630.
+                  התמונה שתופיע כשמפרסמים קישור לשבוע בוואטסאפ. קובץ JPEG בלבד, עד 300KB. מומלץ יחס רוחב-גובה של
+                  כ-1200×630.
                 </p>
                 {settings.shareImageUrl && !removeShareImage && (
                   <div className="flex items-center gap-3">
@@ -313,7 +314,7 @@ export function SettingsButton({ settings }: { settings: TeacherSettings }) {
                 <input
                   name="shareImage"
                   type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  accept="image/jpeg"
                   onChange={() => setRemoveShareImage(false)}
                   className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
                 />

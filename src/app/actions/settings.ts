@@ -19,6 +19,12 @@ const IMAGE_EXTENSION_BY_MIME: Record<string, string> = {
   "image/webp": "webp",
   "image/gif": "gif",
 };
+// The WhatsApp-share photo is served to link-preview crawlers as-is, with no
+// resizing/compositing (see docs/whatsapp-link-preview.md) - restricting it
+// to JPEG and a small size keeps that direct serve fast and predictable
+// instead of accepting arbitrary formats/sizes a crawler's stricter
+// image-rendering path might choke on.
+const MAX_SHARE_IMAGE_BYTES = 300 * 1024;
 
 // `prefix` keeps the background photo and the WhatsApp-share photo as
 // separate files (different aspect ratios, different purposes) even though
@@ -28,7 +34,14 @@ async function saveUploadedImage(
   file: File,
   prefix: "teacher" | "share"
 ): Promise<string | { error: string }> {
-  if (file.size > MAX_IMAGE_BYTES) {
+  if (prefix === "share") {
+    if (file.size > MAX_SHARE_IMAGE_BYTES) {
+      return { error: "התמונה גדולה מדי (מקסימום 300KB)." };
+    }
+    if (file.type !== "image/jpeg") {
+      return { error: "יש להעלות קובץ JPEG בלבד." };
+    }
+  } else if (file.size > MAX_IMAGE_BYTES) {
     return { error: "התמונה גדולה מדי (מקסימום 5MB)." };
   }
   const extension = IMAGE_EXTENSION_BY_MIME[file.type];
